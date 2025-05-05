@@ -1,0 +1,93 @@
+﻿@page "/fuel-map"
+@using CarMaintenanceDiary.Application.Services
+@using CarMaintenanceDiary.Shared.DTOs
+@using System.Text.Json
+@inject IJSRuntime JS
+@inject FuelStationService FuelStationService
+
+<h3>Nearest Fuel Stations</h3>
+
+<div class="mb-3">
+    <label for="radiusInput" class="form-label">Search radius (km):</label>
+    <InputNumber id="radiusInput" @bind-Value="searchRadiusKm" class="form-control" Min="1" />
+</div>
+
+<button class="btn btn-primary mb-3" @onclick="LoadMap">Show Nearby Stations</button>
+
+@if (isLoading)
+{
+    <div class="loading-overlay">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (!stations.Any())
+{
+    <div class="alert alert-warning">No fuel stations found nearby.</div>
+}
+else
+{
+    <div id="map" style="height: 500px;" class="my-4 rounded shadow-sm border"></div>    
+}
+
+@code {
+    private List<FuelStationDto> stations = new();
+    private bool isLoading = false;
+
+    private GeoCoordinate? userLocation;
+    private bool shouldInitMap = false; 
+
+    private int searchRadiusKm = 5;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMap(); // 🔄 Automatically trigger map loading
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // ✅ Only run JS after the div is definitely in the DOM
+        if (shouldInitMap && userLocation is not null && stations.Any())
+        {
+            shouldInitMap = false; // reset so it only runs once
+            await JS.InvokeVoidAsync("initFuelMap", stations, userLocation.Latitude, userLocation.Longitude, searchRadiusKm * 1000);
+        }
+    }
+
+    private async Task LoadMap()
+    {
+        isLoading = true;
+        stations.Clear();
+        StateHasChanged(); // force loading UI
+
+        try
+        {
+            userLocation = await JS.InvokeAsync<GeoCoordinate>("getUserLocation");
+            stations = await FuelStationService.GetNearbyFuelStationsAsync(userLocation.Latitude, userLocation.Longitude, searchRadiusKm * 1000);
+
+            shouldInitMap = true;   // ✅ set flag for JS call
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"An error occurred: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged(); // render map and trigger OnAfterRenderAsync
+        }
+    }
+
+    public class GeoCoordinate
+    {
+        public double Latitude
+        {
+            get; set;
+        }
+        public double Longitude
+        {
+            get; set;
+        }
+    }
+}

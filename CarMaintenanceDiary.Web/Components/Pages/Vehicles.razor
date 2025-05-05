@@ -1,0 +1,179 @@
+﻿@page "/vehicles"
+@using CarMaintenanceDiary.Application.Interfaces
+@using CarMaintenanceDiary.Shared.DTOs
+@inject IVehicleService VehicleService
+
+<h3 class="mb-3">My Vehicles</h3>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <button class="btn btn-success mb-3" @onclick="OpenAddModal">Add Vehicle</button>
+
+    if (!vehicles.Any())
+    {
+        <div class="alert alert-warning" role="alert">
+            <strong>No vehicles found!</strong> Please add a vehicle to manage records.
+        </div>
+    }
+    else
+    { 
+        <Grid TItem="VehicleDto"
+              Class="table table-hover table-bordered table-striped"
+              Data="@vehicles"
+              AllowFiltering="true"
+              AllowPaging="true" PageSize="10"
+              PageSizeSelectorVisible="true"
+              PageSizeSelectorItems="@(new int[] { 5,10,20 })"
+              AllowSorting="true"
+              AllowSelection="false"
+              SelectionMode="GridSelectionMode.Single"
+              Responsive="true">
+
+            <GridColumns>
+                <GridColumn TItem="VehicleDto" HeaderText="Make" PropertyName="Make" SortKeySelector="v => v.Make"
+                            HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                    @context.Make
+                </GridColumn>
+                <GridColumn TItem="VehicleDto" HeaderText="Model" PropertyName="Model" SortKeySelector="v => v.Model"
+                            HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                    @context.Model
+                </GridColumn>
+                <GridColumn TItem="VehicleDto" HeaderText="Year" PropertyName="Year" SortKeySelector="v => v.Year"
+                            HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                    @context.Year
+                </GridColumn>
+                <GridColumn TItem="VehicleDto" HeaderText="License Plate" PropertyName="LicensePlate" SortKeySelector="v => v.LicensePlate"
+                            HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                    @context.LicensePlate
+                </GridColumn>
+                <GridColumn TItem="VehicleDto" HeaderText="VIN" PropertyName="VIN" SortKeySelector="v => v.VIN"
+                            HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                    @context.VIN
+                </GridColumn>
+
+                <GridColumn TItem="VehicleDto" HeaderText="Actions">
+                    <button class="btn btn-sm btn-primary me-1" @onclick="() => EditVehicle(context)">Edit</button>
+                    <button class="btn btn-sm btn-danger" @onclick="() => DeleteVehicle(context.Id)">Delete</button>
+                </GridColumn>
+            </GridColumns>            
+        </Grid>
+    }    
+}
+
+<Modal @ref="modal" Title="@ModalTitle">
+    <BodyTemplate>
+        <EditForm Model="formVehicle" OnValidSubmit="SaveVehicle" id="vehicle-form">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-2">
+                <label>Make</label>
+                <InputText class="form-control" @bind-Value="formVehicle.Make" />
+                <ValidationMessage For="@(() => formVehicle.Make)" />
+            </div>
+
+            <div class="mb-2">
+                <label>Model</label>
+                <InputText class="form-control" @bind-Value="formVehicle.Model" />
+                <ValidationMessage For="@(() => formVehicle.Model)" />
+            </div>
+
+            <div class="mb-2">
+                <label>Year</label>
+                <InputText class="form-control" @bind-Value="formVehicle.Year" />
+                <ValidationMessage For="@(() => formVehicle.Year)" />
+            </div>
+
+            <div class="mb-2">
+                <label>License plate</label>
+                <InputText class="form-control" @bind-Value="formVehicle.LicensePlate" />
+                <ValidationMessage For="@(() => formVehicle.LicensePlate)" />
+            </div>
+
+            <div class="mb-2">
+                <label>VIN</label>
+                <InputText class="form-control" @bind-Value="formVehicle.VIN" />
+                <ValidationMessage For="@(() => formVehicle.VIN)" />
+            </div>
+        </EditForm>
+    </BodyTemplate>
+    <FooterTemplate>
+        <Button Color="ButtonColor.Secondary" @onclick="CloseModal">Close</Button>
+        <button type="submit" class="btn btn-primary" form="vehicle-form">Save</button>
+    </FooterTemplate>
+</Modal>
+
+@code {
+    private List<VehicleDto> vehicles = new();
+    private VehicleDto formVehicle = new();
+    private bool editMode = false;
+    private bool isLoading = true;
+    private Modal? modal;
+    private string ModalTitle => editMode ? "Edit Vehicle" : "Add Vehicle";
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadVehicles();
+    }
+
+    private async Task LoadVehicles()
+    {
+        isLoading = true;
+        vehicles = await VehicleService.GetAllAsync();
+        isLoading = false;
+    }
+
+    private void OpenAddModal()
+    {
+        formVehicle = new();
+        editMode = false;
+        modal?.ShowAsync();
+    }
+
+    private void EditVehicle(VehicleDto vehicle)
+    {
+        formVehicle = new VehicleDto
+        {
+            Id = vehicle.Id,
+            Make = vehicle.Make,
+            Model = vehicle.Model,
+            Year = vehicle.Year,
+            LicensePlate = vehicle.LicensePlate.ToUpper(),
+            VIN = vehicle.VIN
+        };
+        editMode = true;
+        modal?.ShowAsync();
+    }
+
+    private void CloseModal()
+    {
+        modal?.HideAsync();
+    }
+
+    private async Task SaveVehicle()
+    {
+        if (editMode)
+        {
+            await VehicleService.UpdateAsync(formVehicle);
+        }
+        else
+        {
+            await VehicleService.AddAsync(formVehicle);
+        }
+
+        formVehicle = new();
+        editMode = false;
+        modal?.HideAsync();
+        await LoadVehicles();
+    }
+
+    private async Task DeleteVehicle(int id)
+    {
+        await VehicleService.DeleteAsync(id);
+        await LoadVehicles();
+    }
+}
