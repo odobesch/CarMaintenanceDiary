@@ -23,8 +23,16 @@ builder.Services.AddRazorComponents()
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddScoped<IVehicleService, VehicleService>();
-builder.Services.AddHttpClient();
+builder.Services.AddHttpClient<IVehicleService, VehicleApiService>(client =>
+{
+    client.BaseAddress = new Uri("http://localhost:5026/");
+});
+
+builder.Services.AddHttpClient<IFuelService, FuelApiService>(client =>
+{
+    client.BaseAddress = new Uri("http://localhost:5026/");
+});
+
 builder.Services.AddScoped<FuelStationService>();
 
 

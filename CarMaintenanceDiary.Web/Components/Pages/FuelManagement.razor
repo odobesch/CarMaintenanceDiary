@@ -5,6 +5,7 @@
 @using System.Globalization
 @inject IJSRuntime JS
 @inject IVehicleService VehicleService
+@inject IFuelService FuelService
 @inject ToastService ToastService
 @inject ILogger<FuelManagement> Logger
 
@@ -316,7 +317,7 @@ else
     {
         try
         {
-            var fuelRecords = (await VehicleService.GetFuelRecordsAsync(vehicleId))
+            var fuelRecords = (await FuelService.GetFuelRecordsAsync(vehicleId))
                 .OrderBy(fr => fr.Odometer)
                 .ToList();
 
@@ -326,8 +327,8 @@ else
             }
 
             UpdateChartData(fuelRecords);
-            monthlySummaries = await VehicleService.GetMonthlyFuelSummariesAsync(vehicleId);
-            yearlySummaries = await VehicleService.GetYearlyFuelSummariesAsync(vehicleId);
+            monthlySummaries = await FuelService.GetMonthlyFuelSummariesAsync(vehicleId);
+            yearlySummaries = await FuelService.GetYearlyFuelSummariesAsync(vehicleId);
         }
         catch (Exception ex)
         {
@@ -441,7 +442,7 @@ else
 
         try
         {
-            await VehicleService.AddFuelRecordAsync(selectedVehicle.Id, newFuelRecord);
+            await FuelService.AddFuelRecordAsync(selectedVehicle.Id, newFuelRecord);
 
             ToastService.Notify(new ToastMessage(ToastType.Success, "Fuel record added successfully."));
             
@@ -495,11 +496,11 @@ else
         {
             if (isEditMode && editingRecord is not null)
             {
-                await VehicleService.UpdateFuelRecordAsync(newFuelRecord);
+                await FuelService.UpdateFuelRecordAsync(newFuelRecord);
             }
             else
             {
-                await VehicleService.AddFuelRecordAsync(selectedVehicle.Id, newFuelRecord);
+                await FuelService.AddFuelRecordAsync(selectedVehicle.Id, newFuelRecord);
             }
 
             fuelModal?.HideAsync();
@@ -529,7 +530,7 @@ else
 
         if (confirmed)
         {
-            await VehicleService.DeleteFuelRecordAsync(record.Id);
+            await FuelService.DeleteFuelRecordAsync(record.Id);
             await LoadFuelRecords(selectedVehicle.Id);
             await lineChart.InitializeAsync(chartData, lineChartOptions);
 
