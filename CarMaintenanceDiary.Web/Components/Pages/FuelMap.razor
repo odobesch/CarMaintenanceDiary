@@ -4,6 +4,8 @@
 @using System.Text.Json
 @inject IJSRuntime JS
 @inject FuelStationService FuelStationService
+@inject ToastService ToastService
+@inject ILogger<FuelMap> Logger
 
 <h3>Nearest Fuel Stations</h3>
 
@@ -51,31 +53,61 @@ else
         if (shouldInitMap && userLocation is not null && stations.Any())
         {
             shouldInitMap = false; // reset so it only runs once
-            await JS.InvokeVoidAsync("initFuelMap", stations, userLocation.Latitude, userLocation.Longitude, searchRadiusKm * 1000);
+            try
+            {
+                await JS.InvokeVoidAsync("initFuelMap", stations, userLocation.Latitude, userLocation.Longitude, searchRadiusKm * 1000);
+            }
+            catch (JSException jsEx)
+            {
+                Logger.LogError(jsEx, "Failed to init fuel map");
+                Console.Error.WriteLine($"JS map error: {jsEx.Message}");
+            }
         }
     }
 
     private async Task LoadMap()
     {
+        if (isLoading)
+            return;
+
         isLoading = true;
         stations.Clear();
-        StateHasChanged(); // force loading UI
+        StateHasChanged();
 
         try
         {
-            userLocation = await JS.InvokeAsync<GeoCoordinate>("getUserLocation");
-            stations = await FuelStationService.GetNearbyFuelStationsAsync(userLocation.Latitude, userLocation.Longitude, searchRadiusKm * 1000);
+            searchRadiusKm = Math.Clamp(searchRadiusKm, 1, 100);
 
-            shouldInitMap = true;   // ✅ set flag for JS call
+            userLocation = await JS.InvokeAsync<GeoCoordinate>("getUserLocation");
+            stations = await FuelStationService.GetNearbyFuelStationsAsync(
+                userLocation.Latitude,
+                userLocation.Longitude,
+                searchRadiusKm * 1000
+            );
+
+            shouldInitMap = true;
+
+            if (!stations.Any())
+            {
+                ToastService.Notify(new ToastMessage(ToastType.Warning, "No fuel stations found in the selected area."));
+            }
+        }
+        catch (JSException jsEx)
+        {
+            Console.Error.WriteLine($"JS error: {jsEx.Message}");
+            Logger.LogError(jsEx, "JS error {0}", jsEx.Message);
+            ToastService.Notify(new ToastMessage(ToastType.Danger, "Location access denied or unavailable."));
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"An error occurred: {ex.Message}");
+            Console.Error.WriteLine($"Unexpected error: {ex.Message}");
+            Logger.LogError(ex, "Unexpected error: {0}", ex.Message);
+            ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to load nearby stations. Please try again."));
         }
         finally
         {
             isLoading = false;
-            StateHasChanged(); // render map and trigger OnAfterRenderAsync
+            StateHasChanged();
         }
     }
 

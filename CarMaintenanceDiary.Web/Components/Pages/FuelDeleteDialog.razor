@@ -1,8 +1,0 @@
-﻿@using CarMaintenanceDiary.Shared.DTOs
-@using CarMaintenanceDiary.Shared.DTOs.Fuel
-
-<p>Are you sure you want to delete the fuel record from <strong>@FuelRecord?.Date.ToShortDateString()</strong>?</p>
-
-@code {
-    [Parameter] public FuelRecordDto? FuelRecord { get; set; }
-}

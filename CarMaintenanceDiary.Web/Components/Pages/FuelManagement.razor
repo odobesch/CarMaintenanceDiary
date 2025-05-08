@@ -3,14 +3,20 @@
 @using CarMaintenanceDiary.Shared.DTOs
 @using CarMaintenanceDiary.Shared.DTOs.Fuel
 @using System.Globalization
+@inject IJSRuntime JS
 @inject IVehicleService VehicleService
 @inject ToastService ToastService
+@inject ILogger<FuelManagement> Logger
 
 <h3>Fuel Management</h3>
 
 @if (isLoading)
 {
-    <p>Loading vehicles...</p>
+    <div class="loading-overlay">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
 }
 else
 {
@@ -35,49 +41,49 @@ else
             <button class="btn btn-success mb-3" @onclick="OpenAddFuelModal">Add Fuel Record</button>
 
             <Grid TItem="FuelRecordDto"
-                  Data="@selectedVehicle.FuelRecords"
-                  Class="table table-hover table-bordered"
-                  AllowFiltering="true"
-                  AllowPaging="true" PageSize="10"
-                  PageSizeSelectorVisible="true"
-                  PageSizeSelectorItems="@(new int[] { 5,10,20 })"
-                  AllowSorting="true"
-                  AllowSelection="false"
-                  SelectionMode="GridSelectionMode.Single"
-                  Responsive="true">
+            Data="@selectedVehicle.FuelRecords"
+            Class="table table-hover table-bordered"
+            AllowFiltering="true"
+            AllowPaging="true" PageSize="10"
+            PageSizeSelectorVisible="true"
+            PageSizeSelectorItems="@(new int[] { 5,10,20 })"
+            AllowSorting="true"
+            AllowSelection="false"
+            SelectionMode="GridSelectionMode.Single"
+            Responsive="true">
                 <GridColumns>
                     <GridColumn TItem="FuelRecordDto" Field="Date" HeaderText="Date"
-                                PropertyName="Date" SortKeySelector="v => v.Date"
-                                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                    PropertyName="Date" SortKeySelector="v => v.Date"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                         @context.Date.ToShortDateString()
                     </GridColumn>
                     <GridColumn TItem="FuelRecordDto" Field="Odometer" HeaderText="Odometer (km)"
-                                PropertyName="Odometer" SortKeySelector="v => v.Odometer"
-                                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                    PropertyName="Odometer" SortKeySelector="v => v.Odometer"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                         @context.Odometer
                     </GridColumn>
                     <GridColumn TItem="FuelRecordDto" Field="Liters" HeaderText="Fuel Added (liters)"
-                                PropertyName="Liters" SortKeySelector="v => v.Liters"
-                                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                    PropertyName="Liters" SortKeySelector="v => v.Liters"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                         @context.Liters.ToString("F2")
                     </GridColumn>
                     <GridColumn TItem="FuelRecordDto" Field="PricePerLiter" HeaderText="Price Per Liter"
-                                PropertyName="PricePerLiter" SortKeySelector="v => v.PricePerLiter"
-                                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                    PropertyName="PricePerLiter" SortKeySelector="v => v.PricePerLiter"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                         @context.PricePerLiter.ToString("F2")
                     </GridColumn>
                     <GridColumn TItem="FuelRecordDto" HeaderText="Total Cost"
-                                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                         @((context.Liters * (double)context.PricePerLiter).ToString("F2"))
                     </GridColumn>
                     <GridColumn TItem="FuelRecordDto" Field="FuelStation" HeaderText="Fuel Station"
-                                PropertyName="FuelStation" SortKeySelector="v => v.FuelStation"
-                                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                    PropertyName="FuelStation" SortKeySelector="v => v.FuelStation"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                         @context.FuelStation
                     </GridColumn>
                     <GridColumn TItem="FuelRecordDto" Field="FullTank" HeaderText="Full Tank"
-                                PropertyName="FullTank" SortKeySelector="v => v.FullTank"
-                                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                    PropertyName="FullTank" SortKeySelector="v => v.FullTank"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                         @(context.FullTank ? "Yes" : "No")
                     </GridColumn>
                     <GridColumn TItem="FuelRecordDto" Field="Edit/Delete" HeaderText="Edit/Delete">
@@ -97,13 +103,13 @@ else
                 <AccordionItem Title="📅 Monthly Fuel Summary">
                     <Content>
                         <Grid TItem="MonthlyFuelSummaryDto"
-                              Data="@monthlySummaries"
-                              AllowFiltering="true"
-                              AllowSorting="true"
-                              AllowPaging="true"
-                              PageSize="10"
-                              Responsive="true"
-                              Class="table table-sm table-bordered text-center">
+                        Data="@monthlySummaries"
+                        AllowFiltering="true"
+                        AllowSorting="true"
+                        AllowPaging="true"
+                        PageSize="10"
+                        Responsive="true"
+                        Class="table table-sm table-bordered text-center">
 
                             <GridColumns>
                                 <GridColumn TItem="MonthlyFuelSummaryDto" HeaderText="MonthName" SortKeySelector="m => m.MonthName">
@@ -129,13 +135,13 @@ else
                 <AccordionItem Title="📈 Yearly Fuel Summary">
                     <Content>
                         <Grid TItem="YearlyFuelSummaryDto"
-                              Data="@yearlySummaries"
-                              AllowFiltering="true"
-                              AllowSorting="true"
-                              AllowPaging="true"
-                              PageSize="10"
-                              Responsive="true"
-                              Class="table table-sm table-bordered text-center">
+                        Data="@yearlySummaries"
+                        AllowFiltering="true"
+                        AllowSorting="true"
+                        AllowPaging="true"
+                        PageSize="10"
+                        Responsive="true"
+                        Class="table table-sm table-bordered text-center">
 
                             <GridColumns>
                                 <GridColumn TItem="YearlyFuelSummaryDto" HeaderText="Year" SortKeySelector="m => m.Year">
@@ -163,16 +169,15 @@ else
     }
 }
 
-<ConfirmDialog @ref="confirmDialog" />
-
 <Modal @ref="fuelModal" Title="@(isEditMode ? "Edit Fuel Record" : "Add Fuel Record")">
     <BodyTemplate>
-        <EditForm Model="newFuelRecord" OnValidSubmit="SaveFuelRecord" id="fuel-form">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
+        
+            <EditForm Model="newFuelRecord" OnValidSubmit="SaveFuelRecord" id="fuel-form">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
 
-            <div class="mb-2">
-                <label>Date <span style="color: red;">*</span></label>
+                <div class="mb-2">
+                    <label>Date <span style="color: red;">*</span></label>
                 <RadzenDatePicker @bind-Value="newFuelRecord.Date" DateFormat="dd.MM.yyyy" Style="width: 100%;"
                                   AllowClear="true" ShowButton="false" Culture="@(new System.Globalization.CultureInfo("cs-CZ"))" />
                 <ValidationMessage For="@(() => newFuelRecord.Date)" />
@@ -208,14 +213,22 @@ else
                 <ValidationMessage For="@(() => newFuelRecord.FullTank)" />
             </div>
         </EditForm>
+        
     </BodyTemplate>
     <FooterTemplate>
         <Button Color="ButtonColor.Secondary" @onclick="CloseFuelModal">Close</Button>
-        <button type="submit" class="btn btn-primary" form="fuel-form">@(isEditMode ? "Save Changes" : "Add Record")</button>
+        <button type="submit" class="btn btn-primary" form="fuel-form">@(isEditMode ? "Save Changes" : "Add Record")
+            @if (isSaving)
+            {
+                <span class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true"></span>
+            }
+        </button>
     </FooterTemplate>
 </Modal>
 
-@code {
+<ConfirmDialog @ref="confirmDialog" />
+
+@code {   
     private List<VehicleDto> vehicles = new();
     private VehicleDto? selectedVehicle;
     private FuelRecordDto newFuelRecord = new();
@@ -236,11 +249,21 @@ else
     private List<MonthlyFuelSummaryDto> monthlySummaries = new();
     private List<YearlyFuelSummaryDto> yearlySummaries = new();
 
+    private bool isSaving;
+
     protected override async Task OnInitializedAsync()
     {
         isLoading = true;
 
-        vehicles = await VehicleService.GetAllAsync();
+        try
+        {
+            vehicles = await VehicleService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load vehicles.");
+            ToastService.Notify(new ToastMessage(ToastType.Danger, "Unable to load vehicles."));
+        }
 
         if (vehicles.Any())
         {
@@ -254,51 +277,94 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (selectedVehicle is not null && lineChart is not null)
-        {
+        {            
             await lineChart.InitializeAsync(chartData, lineChartOptions);
+        }  
+        if (firstRender == false)
+        {
+            await JS.InvokeVoidAsync("initFlatpickr", "#fuelDate");
+        }
+    }
+
+    private async Task OnVehicleSelected(ChangeEventArgs e)
+    {
+        try
+        {
+            if (int.TryParse(e.Value?.ToString(), out var selectedId) && selectedId > 0)
+            {
+                selectedVehicle = vehicles.FirstOrDefault(v => v.Id == selectedId);
+                await LoadFuelRecords(selectedId);
+
+                if (lineChart is not null)
+                {
+                    await lineChart.InitializeAsync(chartData, lineChartOptions);
+                }
+            }
+            else
+            {
+                selectedVehicle = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load fuel records for selected vehicle.");
+            ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to load fuel records."));
         }
     }
 
     private async Task LoadFuelRecords(int vehicleId)
     {
-        var fuelRecords = (await VehicleService.GetFuelRecordsAsync(vehicleId))
-         .OrderBy(fr => fr.Odometer)
-         .ToList();
+        try
+        {
+            var fuelRecords = (await VehicleService.GetFuelRecordsAsync(vehicleId))
+                .OrderBy(fr => fr.Odometer)
+                .ToList();
 
-        if (selectedVehicle is not null && selectedVehicle.Id == vehicleId)
-            selectedVehicle.FuelRecords = fuelRecords;
+            if (selectedVehicle is not null && selectedVehicle.Id == vehicleId)
+            {
+                selectedVehicle.FuelRecords = fuelRecords;
+            }
 
+            UpdateChartData(fuelRecords);
+            monthlySummaries = await VehicleService.GetMonthlyFuelSummariesAsync(vehicleId);
+            yearlySummaries = await VehicleService.GetYearlyFuelSummariesAsync(vehicleId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load fuel records.");
+            ToastService.Notify(new ToastMessage(ToastType.Danger, "Error loading fuel data."));
+        }
+    }
+
+    private void UpdateChartData(List<FuelRecordDto> records)
+    {
         var colors = ColorUtility.CategoricalTwelveColors;
-
         var labels = new List<string>();
         var consumptionData = new List<double?>();
         var costPer100kmData = new List<double?>();
 
-        for (int i = 1; i < fuelRecords.Count; i++)
+        for (int i = 1; i < records.Count; i++)
         {
-            var prev = fuelRecords[i - 1];
-            var curr = fuelRecords[i];
+            var prev = records[i - 1];
+            var curr = records[i];
 
             double km = curr.Odometer - prev.Odometer;
-            double litersUsed = curr.Liters;
-            double cost = curr.Liters * (double)curr.PricePerLiter;
+            double liters = curr.Liters;
+            double cost = liters * (double)curr.PricePerLiter;
 
             if (km > 0)
             {
-                double consumption = (litersUsed / km) * 100;
-                double costPer100km = (cost / km) * 100;
-
-                consumptionData.Add(consumption);
-                costPer100kmData.Add(costPer100km);
+                consumptionData.Add((liters / km) * 100);
+                costPer100kmData.Add((cost / km) * 100);
                 labels.Add(curr.Date.ToShortDateString());
             }
         }
 
         if (!consumptionData.Any())
         {
+            labels.Add("No Data");
             consumptionData.Add(null);
             costPer100kmData.Add(null);
-            labels.Add("No Data");
         }
 
         chartData = new ChartData
@@ -346,59 +412,57 @@ else
                     }
                 }
             };
-
-        // Call Init after data update
-        if (lineChart is not null)
-        {
-            await lineChart.InitializeAsync(chartData, lineChartOptions);
-        }
-
-        monthlySummaries = await VehicleService.GetMonthlyFuelSummariesAsync(vehicleId);
-        yearlySummaries = await VehicleService.GetYearlyFuelSummariesAsync(vehicleId);
-    }
-
-    private async Task OnVehicleSelected(ChangeEventArgs e)
-    {
-        if (int.TryParse(e.Value?.ToString(), out var selectedId) && selectedId > 0)
-        {
-            selectedVehicle = vehicles.FirstOrDefault(v => v.Id == selectedId);
-            await LoadFuelRecords(selectedId);
-
-            if (lineChart is not null)
-            {
-                await lineChart.InitializeAsync(chartData, lineChartOptions);
-            }
-        }
-        else
-        {
-            selectedVehicle = null;
-        }
-    }
+    }    
 
     private void OpenAddFuelModal()
     {
         isEditMode = false;
         newFuelRecord = new FuelRecordDto
             {
-                Date = DateTime.Now,
-                Odometer = selectedVehicle?.FuelRecords.LastOrDefault()?.Odometer ?? 0
+                Date = DateTime.Today
             };
         fuelModal?.ShowAsync();
     }
 
     private void CloseFuelModal()
-    {
+    {        
         fuelModal?.HideAsync();
     }
 
     private async Task AddFuelRecord()
     {
-        if (selectedVehicle != null)
+        if (selectedVehicle is null)
+        {
+            ToastService.Notify(new ToastMessage(ToastType.Warning, "No vehicle selected."));
+            return;
+        }
+
+        isSaving = true;
+
+        try
         {
             await VehicleService.AddFuelRecordAsync(selectedVehicle.Id, newFuelRecord);
-            selectedVehicle.FuelRecords.Add(newFuelRecord);
+
+            ToastService.Notify(new ToastMessage(ToastType.Success, "Fuel record added successfully."));
+            
             newFuelRecord = new FuelRecordDto();
             fuelModal?.HideAsync();
+
+            await LoadFuelRecords(selectedVehicle.Id);
+
+            if (lineChart is not null)
+            {
+                await lineChart.InitializeAsync(chartData, lineChartOptions);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to add fuel record.");
+            ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to add fuel record."));
+        }
+        finally
+        {
+            isSaving = false;
         }
     }
 
@@ -417,7 +481,7 @@ else
                 FuelStation = record.FuelStation,
                 FullTank = record.FullTank
             };
-
+        
         fuelModal?.ShowAsync();
     }
 
@@ -426,35 +490,42 @@ else
         if (selectedVehicle is null)
             return;
 
-        if (isEditMode && editingRecord is not null)
+        isSaving = true;
+        try
         {
-            await VehicleService.UpdateFuelRecordAsync(newFuelRecord);
+            if (isEditMode && editingRecord is not null)
+            {
+                await VehicleService.UpdateFuelRecordAsync(newFuelRecord);
+            }
+            else
+            {
+                await VehicleService.AddFuelRecordAsync(selectedVehicle.Id, newFuelRecord);
+            }
+
+            fuelModal?.HideAsync();
+            newFuelRecord = new FuelRecordDto();
+            editingRecord = null;
+
+            await LoadFuelRecords(selectedVehicle.Id);
+            await lineChart.InitializeAsync(chartData, lineChartOptions);
         }
-        else
+        catch (Exception ex)
         {
-            await VehicleService.AddFuelRecordAsync(selectedVehicle.Id, newFuelRecord);
+            Logger.LogError(ex, "Save failed");
+            ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to save record."));
         }
-
-        fuelModal?.HideAsync();
-        newFuelRecord = new FuelRecordDto();
-        editingRecord = null;
-
-        await LoadFuelRecords(selectedVehicle.Id);
-        await lineChart.InitializeAsync(chartData, lineChartOptions);
+        finally
+        {
+            isSaving = false;
+        }        
     }
 
     private async Task DeleteFuelRecord(FuelRecordDto record)
     {
         if (selectedVehicle is null)
             return;
-
-        var parameters = new Dictionary<string, object?>
-    {
-        { "FuelRecord", record }
-    };
-
-        var confirmed = await confirmDialog.ShowAsync<FuelDeleteDialog>(
-            $"Delete Record", parameters);
+            
+        var confirmed = await confirmDialog.ShowAsync($"Delete fuel record", $"Are you sure you want to delete the fuel record from {record.Date}?");
 
         if (confirmed)
         {

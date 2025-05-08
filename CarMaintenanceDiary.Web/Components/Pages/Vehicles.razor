@@ -2,12 +2,18 @@
 @using CarMaintenanceDiary.Application.Interfaces
 @using CarMaintenanceDiary.Shared.DTOs
 @inject IVehicleService VehicleService
+@inject ToastService ToastService
+@inject ILogger<Vehicles> Logger
 
 <h3 class="mb-3">My Vehicles</h3>
 
 @if (isLoading)
 {
-    <p>Loading...</p>
+    <div class="loading-overlay">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
 }
 else
 {
@@ -22,36 +28,36 @@ else
     else
     { 
         <Grid TItem="VehicleDto"
-              Class="table table-hover table-bordered table-striped"
-              Data="@vehicles"
-              AllowFiltering="true"
-              AllowPaging="true" PageSize="10"
-              PageSizeSelectorVisible="true"
-              PageSizeSelectorItems="@(new int[] { 5,10,20 })"
-              AllowSorting="true"
-              AllowSelection="false"
-              SelectionMode="GridSelectionMode.Single"
-              Responsive="true">
+        Class="table table-hover table-bordered table-striped"
+        Data="@vehicles"
+        AllowFiltering="true"
+        AllowPaging="true" PageSize="10"
+        PageSizeSelectorVisible="true"
+        PageSizeSelectorItems="@(new int[] { 5,10,20 })"
+        AllowSorting="true"
+        AllowSelection="false"
+        SelectionMode="GridSelectionMode.Single"
+        Responsive="true">
 
             <GridColumns>
                 <GridColumn TItem="VehicleDto" HeaderText="Make" PropertyName="Make" SortKeySelector="v => v.Make"
-                            HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                     @context.Make
                 </GridColumn>
                 <GridColumn TItem="VehicleDto" HeaderText="Model" PropertyName="Model" SortKeySelector="v => v.Model"
-                            HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                     @context.Model
                 </GridColumn>
                 <GridColumn TItem="VehicleDto" HeaderText="Year" PropertyName="Year" SortKeySelector="v => v.Year"
-                            HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                     @context.Year
                 </GridColumn>
                 <GridColumn TItem="VehicleDto" HeaderText="License Plate" PropertyName="LicensePlate" SortKeySelector="v => v.LicensePlate"
-                            HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                     @context.LicensePlate
                 </GridColumn>
                 <GridColumn TItem="VehicleDto" HeaderText="VIN" PropertyName="VIN" SortKeySelector="v => v.VIN"
-                            HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                     @context.VIN
                 </GridColumn>
 
@@ -107,6 +113,8 @@ else
     </FooterTemplate>
 </Modal>
 
+<ConfirmDialog @ref="confirmDialog" />
+
 @code {
     private List<VehicleDto> vehicles = new();
     private VehicleDto formVehicle = new();
@@ -114,7 +122,8 @@ else
     private bool isLoading = true;
     private Modal? modal;
     private string ModalTitle => editMode ? "Edit Vehicle" : "Add Vehicle";
-    
+    private ConfirmDialog confirmDialog = default!;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadVehicles();
@@ -158,11 +167,29 @@ else
     {
         if (editMode)
         {
-            await VehicleService.UpdateAsync(formVehicle);
+            try
+            {
+                await VehicleService.UpdateAsync(formVehicle);
+                ToastService.Notify(new ToastMessage(ToastType.Success, "Vehicle updated."));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error updating vehicle with ID {Id}", formVehicle.Id);
+                ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to update vehicle."));
+            }            
         }
         else
         {
-            await VehicleService.AddAsync(formVehicle);
+            try
+            {
+                await VehicleService.AddAsync(formVehicle);
+                ToastService.Notify(new ToastMessage(ToastType.Success, "Vehicle created."));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error creating vehicle with ID {Id}", formVehicle.Id);
+                ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to create vehicle."));
+            }            
         }
 
         formVehicle = new();
@@ -173,7 +200,24 @@ else
 
     private async Task DeleteVehicle(int id)
     {
-        await VehicleService.DeleteAsync(id);
-        await LoadVehicles();
+        var vehicle = vehicles.FirstOrDefault(v => v.Id == id);
+        if (vehicle is null)
+            return;
+       
+        var confirmed = await confirmDialog.ShowAsync($"Delete vehicle", $"Delete vehicle {vehicle.Make} {vehicle.Model}?");
+        if (!confirmed)
+            return;
+
+        try
+        {
+            await VehicleService.DeleteAsync(id);
+            await LoadVehicles();
+            ToastService.Notify(new ToastMessage(ToastType.Success, "Vehicle deleted."));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting vehicle with ID {Id}", id);
+            ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to delete vehicle."));
+        }
     }
 }

@@ -4,6 +4,7 @@ using CarMaintenanceDiary.Infrastructure.Data;
 using CarMaintenanceDiary.Shared.DTOs;
 using CarMaintenanceDiary.Shared.DTOs.Fuel;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,15 +16,18 @@ namespace CarMaintenanceDiary.Application.Services
     public class VehicleService : IVehicleService
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<VehicleService> _logger;
 
-        public VehicleService(ApplicationDbContext context)
+        public VehicleService(ApplicationDbContext context, ILogger<VehicleService> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public async Task<List<VehicleDto>> GetAllAsync()
         {
             return await _context.Vehicles
+                .AsNoTracking()
                 .Select(v => new VehicleDto
                 {
                     Id = v.Id,
@@ -52,7 +56,7 @@ namespace CarMaintenanceDiary.Application.Services
         public async Task<int> AddAsync(VehicleDto dto)
         {
             var entity = new Vehicle
-            {               
+            {
                 Make = dto.Make,
                 Model = dto.Model,
                 Year = dto.Year,
@@ -70,7 +74,7 @@ namespace CarMaintenanceDiary.Application.Services
             var entity = await _context.Vehicles.FindAsync(dto.Id);
             if (entity == null)
                 return;
-            
+
             entity.Make = dto.Make;
             entity.Model = dto.Model;
             entity.Year = dto.Year;
@@ -84,31 +88,32 @@ namespace CarMaintenanceDiary.Application.Services
         {
             var entity = await _context.Vehicles.FindAsync(id);
             if (entity == null)
+            {
+                _logger.LogWarning("Attempted to delete non-existent vehicle with ID {Id}", id);
                 return;
+            }
 
             _context.Vehicles.Remove(entity);
             await _context.SaveChangesAsync();
         }
 
-
         public async Task<List<FuelRecordDto>> GetFuelRecordsAsync(int vehicleId)
         {
-            var fuelRecords = await _context.FuelEntries
+            return await _context.FuelEntries
+                .AsNoTracking()
                 .Where(fr => fr.VehicleId == vehicleId)
                 .OrderBy(fr => fr.Date)
-                .ToListAsync();
-
-            return fuelRecords.Select(fr => new FuelRecordDto
-            {
-                Id = fr.Id,
-                VehicleId = fr.VehicleId,
-                Date = fr.Date,
-                Odometer = fr.Odometer,
-                Liters = fr.Liters,
-                PricePerLiter = fr.PricePerLiter,
-                FuelStation = fr.FuelStation,
-                FullTank = fr.FullTank
-            }).ToList();
+                .Select(fr => new FuelRecordDto
+                {
+                    Id = fr.Id,
+                    VehicleId = fr.VehicleId,
+                    Date = fr.Date,
+                    Odometer = fr.Odometer,
+                    Liters = fr.Liters,
+                    PricePerLiter = fr.PricePerLiter,
+                    FuelStation = fr.FuelStation,
+                    FullTank = fr.FullTank
+                }).ToListAsync();
         }
 
         public async Task AddFuelRecordAsync(int vehicleId, FuelRecordDto fuelRecordDto)
@@ -221,6 +226,6 @@ namespace CarMaintenanceDiary.Application.Services
             }
 
             return result;
-        }
+        }       
     }
 }

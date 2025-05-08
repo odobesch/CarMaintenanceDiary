@@ -3,8 +3,17 @@ using CarMaintenanceDiary.Application.Services;
 using CarMaintenanceDiary.Infrastructure.Data;
 using CarMaintenanceDiary.Web.Components;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Debug()
+    .WriteTo.Console()
+    .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 builder.Services.AddBlazorBootstrap();
 
@@ -17,6 +26,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<IVehicleService, VehicleService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<FuelStationService>();
+
 
 var app = builder.Build();
 
