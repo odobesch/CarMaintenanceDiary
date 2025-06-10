@@ -55,7 +55,7 @@ namespace CarMaintenanceDiary.Api.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<int>> Add(VehicleDto dto)
+        public async Task<ActionResult<int>> Add([FromBody] VehicleDto dto)
         {
             var entity = new Vehicle
             {
@@ -72,12 +72,20 @@ namespace CarMaintenanceDiary.Api.Controllers
             return Ok(entity.Id);
         }
 
+        [HttpGet("exists/{licensePlate}")]
+        public async Task<ActionResult<bool>> LicensePlateExists(string licensePlate)
+        {
+            var exists = await _context.Vehicles
+                .AnyAsync(v => v.LicensePlate.ToUpper() == licensePlate.ToUpper());
+            return Ok(exists);
+        }
+
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, VehicleDto dto)
+        public async Task<IActionResult> Update(int id, [FromBody] VehicleDto dto)
         {
             var entity = await _context.Vehicles.FindAsync(id);
             if (entity == null)
-                return NotFound();
+                return NotFound();            
 
             entity.Make = dto.Make;
             entity.Model = dto.Model;

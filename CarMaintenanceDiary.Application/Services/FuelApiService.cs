@@ -18,6 +18,11 @@ namespace CarMaintenanceDiary.Application.Services
             return await _http.GetFromJsonAsync<List<FuelRecordDto>>($"api/fuel/{vehicleId}") ?? new();
         }
 
+        public async Task<FuelRecordDto?> GetFuelRecordByIdAsync(int recordId)
+        {
+            return await _http.GetFromJsonAsync<FuelRecordDto>($"api/fuel/record/{recordId}");
+        }
+
         public async Task AddFuelRecordAsync(int vehicleId, FuelRecordDto record)
         {
             var response = await _http.PostAsJsonAsync($"api/fuel/{vehicleId}", record);

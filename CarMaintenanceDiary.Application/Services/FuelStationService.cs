@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace CarMaintenanceDiary.Application.Services
 {
@@ -12,25 +13,35 @@ namespace CarMaintenanceDiary.Application.Services
 
         public FuelStationService(IHttpClientFactory factory, ILogger<FuelStationService> logger)
         {
-            _http = factory.CreateClient();
+            _http = factory.CreateClient("FuelStation");
             _logger = logger;
         }
 
         public async Task<List<FuelStationDto>> GetNearbyFuelStationsAsync(double lat, double lon, int radiusMeters = 5000)
         {
-            var query = $"""
-                [out:json];
-                node["amenity"="fuel"](around:{radiusMeters},{lat},{lon});
-                out;
-                """;
-
+            var query = string.Format(System.Globalization.CultureInfo.InvariantCulture,
+    "[out:json];node[\"amenity\"=\"fuel\"](around:{0},{1},{2});out;",
+    radiusMeters, lat, lon);
             var url = "https://overpass-api.de/api/interpreter?data=" + Uri.EscapeDataString(query);
 
-            _logger.LogInformation("Requesting nearby fuel stations: lat={Latitude}, lon={Longitude}, radius={Radius}m", lat, lon, radiusMeters);
+            _logger.LogInformation("Overpass URL: {Url}", url);
 
             try
             {
-                var result = await _http.GetFromJsonAsync<OverpassResponse>(url);
+                var response = await _http.GetAsync(url);
+                var content = await response.Content.ReadAsStringAsync();  
+
+                _logger.LogInformation("Status: {0}, Response: {1}", response.StatusCode, content);
+
+                _logger.LogInformation("Overpass status: {Code}", response.StatusCode);
+                _logger.LogInformation("Overpass response: {Content}", content);
+
+                response.EnsureSuccessStatusCode(); // Will throw if not 200
+
+                var result = JsonSerializer.Deserialize<OverpassResponse>(content, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
 
                 var stations = result?.Elements
                     .Where(e => e.Type == "node")
@@ -42,18 +53,11 @@ namespace CarMaintenanceDiary.Application.Services
                     })
                     .ToList() ?? new();
 
-                _logger.LogInformation("Found {Count} stations", stations.Count);
-
                 return stations;
-            }
-            catch (HttpRequestException httpEx)
-            {
-                _logger.LogError(httpEx, "HTTP error while requesting fuel stations");
-                return new();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error in GetNearbyFuelStationsAsync");
+                _logger.LogError(ex, "Failed to query Overpass API");
                 return new();
             }
         }

@@ -10,5 +10,6 @@ namespace CarMaintenanceDiary.Application.Interfaces
         Task DeleteFuelRecordAsync(int recordId);
         Task<List<MonthlyFuelSummaryDto>> GetMonthlyFuelSummariesAsync(int vehicleId);
         Task<List<YearlyFuelSummaryDto>> GetYearlyFuelSummariesAsync(int vehicleId);
+        Task<FuelRecordDto?> GetFuelRecordByIdAsync(int recordId);
     }
 }

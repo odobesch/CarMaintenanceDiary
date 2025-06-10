@@ -1,5 +1,6 @@
 ﻿@inherits LayoutComponentBase
 
+<Toasts class="p-3" AutoHide="true" Delay="6000" Placement="ToastsPlacement.TopRight" />
 <BlazorBootstrapLayout StickyHeader="true">
     <HeaderSection>
         <ThemeSwitcher Class="ps-3 ps-lg-2" Position="DropdownMenuPosition.End" />
@@ -14,7 +15,7 @@
                   WidthUnit="Unit.Px" />
     </SidebarSection>
 
-    <ContentSection>
+    <ContentSection>       
         @Body
     </ContentSection>
 

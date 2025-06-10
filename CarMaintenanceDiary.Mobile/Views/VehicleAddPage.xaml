@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"  
+            xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"  
+            x:Class="CarMaintenanceDiary.Mobile.Views.VehicleAddPage"  
+            Title="Add Vehicle">  
+   <ScrollView>  
+       <VerticalStackLayout Padding="20" Spacing="12">  
+           <Entry Placeholder="Make" Text="{Binding Make}" />  
+           <Entry Placeholder="Model" Text="{Binding Model}" />  
+           <Entry Placeholder="Year" Keyboard="Numeric" Text="{Binding Year}" />  
+           <Entry Placeholder="License Plate" Text="{Binding LicensePlate}" />  
+           <HorizontalStackLayout Spacing="12">  
+               <Button Command="{Binding ScanPlateFromGalleryCommand}">  
+                   <Button.ImageSource>  
+                       <FontImageSource Glyph="&#xf03e;" FontFamily="FAS" Size="20" Color="White" />  
+                   </Button.ImageSource>  
+               </Button>  
+               <Button Command="{Binding ScanPlateFromCameraCommand}">  
+                   <Button.ImageSource>  
+                       <FontImageSource Glyph="&#xf030;" FontFamily="FAS" Size="20" Color="White" />  
+                   </Button.ImageSource>  
+               </Button>  
+           </HorizontalStackLayout>  
+           <Entry Placeholder="VIN" Text="{Binding Vin}" />  
+           <Button  
+               Command="{Binding ScanVinFromGalleryCommand}">  
+               <Button.ImageSource>  
+                   <FontImageSource Glyph="&#xf03e;" FontFamily="FAS" Size="20" Color="White" />  
+               </Button.ImageSource>  
+           </Button>  
+             
+           <CollectionView ItemsSource="{Binding ValidationErrors}">  
+               <CollectionView.ItemTemplate>  
+                   <DataTemplate>  
+                       <Label Text="{Binding .}" TextColor="Red" FontSize="12"/>  
+                   </DataTemplate>  
+               </CollectionView.ItemTemplate>  
+           </CollectionView>  
+           <Button Text="Add Vehicle"  
+               Command="{Binding AddVehicleCommand}"  
+               IsEnabled="{Binding CanSave}" />  
+ 
+           <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />  
+       </VerticalStackLayout>  
+   </ScrollView>  
+</ContentPage>

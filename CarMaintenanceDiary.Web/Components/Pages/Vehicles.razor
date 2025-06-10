@@ -116,6 +116,7 @@ else
 <ConfirmDialog @ref="confirmDialog" />
 
 @code {
+       
     private List<VehicleDto> vehicles = new();
     private VehicleDto formVehicle = new();
     private bool editMode = false;
@@ -130,7 +131,7 @@ else
     }
 
     private async Task LoadVehicles()
-    {
+    {     
         isLoading = true;
         vehicles = await VehicleService.GetAllAsync();
         isLoading = false;
@@ -170,7 +171,7 @@ else
             try
             {
                 await VehicleService.UpdateAsync(formVehicle);
-                ToastService.Notify(new ToastMessage(ToastType.Success, "Vehicle updated."));
+                ToastService.Notify(new ToastMessage(ToastType.Success,"Vehicle updated."));
             }
             catch (Exception ex)
             {
@@ -182,8 +183,15 @@ else
         {
             try
             {
+                if (await VehicleService.LicensePlateExistsAsync(formVehicle.LicensePlate))
+                {
+                    await modal!.HideAsync();
+                    ToastService.Notify(new ToastMessage(ToastType.Warning, $"A car with license plate {formVehicle.LicensePlate.ToUpper()} already exists."));
+                    return;
+                }
+
                 await VehicleService.AddAsync(formVehicle);
-                ToastService.Notify(new ToastMessage(ToastType.Success, "Vehicle created."));
+                ToastService.Notify(new ToastMessage(ToastType.Success, $"Vehicle with {formVehicle.LicensePlate.ToUpper()} created."));
             }
             catch (Exception ex)
             {
@@ -212,12 +220,12 @@ else
         {
             await VehicleService.DeleteAsync(id);
             await LoadVehicles();
-            ToastService.Notify(new ToastMessage(ToastType.Success, "Vehicle deleted."));
+            ToastService.Notify(new ToastMessage(ToastType.Success, $"Vehicle with license plate {vehicle.LicensePlate.ToUpper()} deleted."));
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error deleting vehicle with ID {Id}", id);
             ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to delete vehicle."));
         }
-    }
+    }    
 }

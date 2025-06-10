@@ -229,7 +229,7 @@ else
 
 <ConfirmDialog @ref="confirmDialog" />
 
-@code {   
+@code {       
     private List<VehicleDto> vehicles = new();
     private VehicleDto? selectedVehicle;
     private FuelRecordDto newFuelRecord = new();
@@ -254,7 +254,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        isLoading = true;
+        isLoading = true;        
 
         try
         {
@@ -540,5 +540,5 @@ else
         {
             ToastService.Notify(new ToastMessage(ToastType.Secondary, "Delete cancelled."));
         }
-    }
+    }    
 }

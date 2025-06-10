@@ -14,6 +14,7 @@ namespace CarMaintenanceDiary.Application.Interfaces
         Task<VehicleDto?> GetByIdAsync(int id);
         Task<int> AddAsync(VehicleDto vehicle);
         Task UpdateAsync(VehicleDto vehicle);
-        Task DeleteAsync(int id);        
+        Task DeleteAsync(int id);
+        Task<bool> LicensePlateExistsAsync(string licensePlate);
     }
 }

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="CarMaintenanceDiary.Mobile.Views.VehicleEditPage"
+             Title="Edit vehicle">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="12">
+            <Entry Placeholder="Make" Text="{Binding Make}" />
+            <Entry Placeholder="Model" Text="{Binding Model}" />
+            <Entry Placeholder="Year" Keyboard="Numeric" Text="{Binding Year}" />
+            <Entry Placeholder="License Plate" Text="{Binding LicensePlate}" />
+            <Entry Placeholder="VIN" Text="{Binding Vin}" />            
+            <Button Text="Edit Vehicle"
+            Command="{Binding EditVehicleCommand}"
+            IsEnabled="true" />
+
+            <ActivityIndicator 
+                IsRunning="{Binding IsBusy}" 
+                IsVisible="{Binding IsBusy}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

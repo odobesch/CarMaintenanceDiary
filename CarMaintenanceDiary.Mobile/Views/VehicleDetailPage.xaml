@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="CarMaintenanceDiary.Mobile.Views.VehicleDetailPage"
+             Title="Vehicle Detail">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="12">
+            <Label Text="Make" FontAttributes="Bold"/>
+            <Label Text="{Binding Vehicle.Make}" />
+
+            <Label Text="Model" FontAttributes="Bold"/>
+            <Label Text="{Binding Vehicle.Model}" />
+
+            <Label Text="Year" FontAttributes="Bold"/>
+            <Label Text="{Binding Vehicle.Year}" />
+
+            <Label Text="License Plate" FontAttributes="Bold"/>
+            <Label Text="{Binding Vehicle.LicensePlate}" />
+
+            <Label Text="VIN" FontAttributes="Bold"/>
+            <Label Text="{Binding Vehicle.VIN}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

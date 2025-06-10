@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+              xmlns:local="clr-namespace:CarMaintenanceDiary.Mobile.ViewModels"
+             x:Class="CarMaintenanceDiary.Mobile.Views.FuelListPage"
+             Title="Fuel Page">
+    <RefreshView IsRefreshing="{Binding IsRefreshing}" Command="{Binding RefreshingCommand}">
+        <Grid RowDefinitions="*,Auto" Padding="0">
+            <CollectionView ItemsSource="{Binding FuelRecords}"
+                     Margin="10"
+                     SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <SwipeView>
+                            <!-- Swipe Left: Edit -->
+                            <SwipeView.LeftItems>
+                                <SwipeItems>
+                                    <SwipeItem
+                                 Text="Edit"
+                                 BackgroundColor="DodgerBlue"
+                                 Command="{Binding Source={RelativeSource AncestorType={x:Type local:FuelListViewModel}}, Path=EditVehicleCommand}"
+                                 CommandParameter="{Binding}" />
+                                </SwipeItems>
+                            </SwipeView.LeftItems>
+                            <!-- Swipe Right: Delete -->
+                            <SwipeView.RightItems>
+                                <SwipeItems>
+                                    <SwipeItem
+                                 Text="Delete"
+                                 BackgroundColor="Red"
+                                 Command="{Binding Source={RelativeSource AncestorType={x:Type local:FuelListViewModel}}, Path=DeleteVehicleCommand}"
+                                 CommandParameter="{Binding}" />
+                                </SwipeItems>
+                            </SwipeView.RightItems>
+                            <!-- Card -->
+                            <Border Margin="0,5"
+                             Padding="15"
+                             StrokeShape="RoundRectangle 12"
+                             BackgroundColor="{DynamicResource CardBackgroundColor}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                 NumberOfTapsRequired="2"
+                                 Command="{Binding Source={RelativeSource AncestorType={x:Type local:FuelListViewModel}}, Path=ShowFuelDetailCommand}"
+                                 CommandParameter="{Binding}" />
+                                </Border.GestureRecognizers>
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="{Binding Date}"   
+                                        FontAttributes="Bold"  
+                                        FontSize="18"/>
+                                    <Label Text="{Binding FuelStation}"   
+                                        FontSize="16"/>                                   
+                                </VerticalStackLayout>
+                            </Border>
+                        </SwipeView>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+            <Button Grid.Row="1"  
+      Text="Add Vehicle"  
+      Command="{Binding AddVehicleCommand}"  
+      HorizontalOptions="Center"  
+      Margin="10"/>
+        </Grid>
+    </RefreshView>
+</ContentPage>

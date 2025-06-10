@@ -1,3 +1,5 @@
+using BlazorBootstrap;
+using Blazored.Toast;
 using CarMaintenanceDiary.Application.Interfaces;
 using CarMaintenanceDiary.Application.Services;
 using CarMaintenanceDiary.Infrastructure.Data;
@@ -25,16 +27,16 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddHttpClient<IVehicleService, VehicleApiService>(client =>
 {
-    client.BaseAddress = new Uri("http://localhost:5026/");
+    client.BaseAddress = new Uri("https://localhost:7260/");
 });
 
 builder.Services.AddHttpClient<IFuelService, FuelApiService>(client =>
 {
-    client.BaseAddress = new Uri("http://localhost:5026/");
+    client.BaseAddress = new Uri("https://localhost:7260/");
 });
 
 builder.Services.AddScoped<FuelStationService>();
-
+builder.Services.AddSingleton<ToastService>();
 
 var app = builder.Build();
 

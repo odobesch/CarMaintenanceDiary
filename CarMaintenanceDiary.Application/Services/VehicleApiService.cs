@@ -15,31 +15,39 @@ namespace CarMaintenanceDiary.Application.Services
 
         public async Task<List<VehicleDto>> GetAllAsync()
         {
-            return await _http.GetFromJsonAsync<List<VehicleDto>>("api/vehicles/getall") ?? new();
+            var result = await _http.GetFromJsonAsync<List<VehicleDto>>("api/vehicles/getall") ?? new();
+            return result;
+        }
+
+        public async Task<bool> LicensePlateExistsAsync(string licensePlate)
+        {
+            var result = await _http.GetFromJsonAsync<bool>($"api/vehicles/exists/{licensePlate}");
+            return result;
         }
 
         public async Task<int> AddAsync(VehicleDto dto)
         {
-            var response = await _http.PostAsJsonAsync("api/vehicles/add", dto);
+            var response = await _http.PostAsJsonAsync("api/vehicles", dto);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<int>();
         }
 
         public async Task UpdateAsync(VehicleDto dto)
         {
-            var response = await _http.PutAsJsonAsync($"api/vehicles/update/{dto.Id}", dto);
+            var response = await _http.PutAsJsonAsync($"api/vehicles/{dto.Id}", dto);
             response.EnsureSuccessStatusCode();
         }
 
         public async Task DeleteAsync(int id)
         {
-            var response = await _http.DeleteAsync($"api/vehicles/delete/{id}");
+            var response = await _http.DeleteAsync($"api/vehicles/{id}");
             response.EnsureSuccessStatusCode();
         }
 
         public async Task<VehicleDto?> GetByIdAsync(int id)
         {
-            return await _http.GetFromJsonAsync<VehicleDto>($"api/vehicles/get/{id}");
+            var result = await _http.GetFromJsonAsync<VehicleDto>($"api/vehicles/{id}");
+            return result;
         }
     }
 }

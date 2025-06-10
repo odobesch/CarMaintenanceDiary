@@ -39,6 +39,30 @@ namespace CarMaintenanceDiary.Api.Controllers
             return Ok(records);
         }
 
+        [HttpGet("record/{recordId}")]
+        public async Task<ActionResult<FuelRecordDto>> GetFuelRecordById(int recordId)
+        {
+            var record = await _context.FuelEntries
+                .Where(r => r.Id == recordId)
+                .Select(r => new FuelRecordDto
+                {
+                    Id = r.Id,
+                    VehicleId = r.VehicleId,
+                    Date = r.Date,
+                    Odometer = r.Odometer,
+                    Liters = r.Liters,
+                    PricePerLiter = r.PricePerLiter,
+                    FuelStation = r.FuelStation,
+                    FullTank = r.FullTank
+                })
+                .FirstOrDefaultAsync();
+
+            if (record == null)
+                return NotFound();
+
+            return Ok(record);
+        }
+
         [HttpPost("{vehicleId}")]
         public async Task<IActionResult> AddFuelRecord(int vehicleId, [FromBody] FuelRecordDto dto)
         {

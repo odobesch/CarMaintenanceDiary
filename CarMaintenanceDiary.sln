@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarMaintenanceDiary.Web", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarMaintenanceDiary.Api", "CarMaintenanceDiary.Api\CarMaintenanceDiary.Api.csproj", "{91712CB6-3240-4FAB-9004-7E2EC447C3F5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarMaintenanceDiary.Mobile", "CarMaintenanceDiary.Mobile\CarMaintenanceDiary.Mobile.csproj", "{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -111,6 +113,19 @@ Global
 		{91712CB6-3240-4FAB-9004-7E2EC447C3F5}.Release|x64.Build.0 = Release|Any CPU
 		{91712CB6-3240-4FAB-9004-7E2EC447C3F5}.Release|x86.ActiveCfg = Release|Any CPU
 		{91712CB6-3240-4FAB-9004-7E2EC447C3F5}.Release|x86.Build.0 = Release|Any CPU
+		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Debug|x64.Build.0 = Debug|Any CPU
+		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Debug|x86.Build.0 = Debug|Any CPU
+		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Release|x64.ActiveCfg = Release|Any CPU
+		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Release|x64.Build.0 = Release|Any CPU
+		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Release|x86.ActiveCfg = Release|Any CPU
+		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

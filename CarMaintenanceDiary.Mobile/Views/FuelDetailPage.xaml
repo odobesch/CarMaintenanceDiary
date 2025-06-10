@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="CarMaintenanceDiary.Mobile.Views.FuelDetailPage"
+             Title="Fuel Record Detail">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="12">
+            <Label Text="{Binding FuelRecord.Date}" FontSize="24" FontAttributes="Bold"/>
+            <Label Text="{Binding FuelRecord.FuelStation}" FontSize="18"/>
+            <Label Text="{Binding FuelRecord.Amount}" FontSize="18"/>
+            <Label Text="{Binding FuelRecord.Price}" FontSize="18"/>
+            <Label Text="{Binding FuelRecord.Liters}" FontSize="18"/>
+            <Label Text="{Binding FuelRecord.PricePerLiter}" FontSize="18"/>
+            <Label Text="{Binding FuelRecord.FullTank}" FontSize="18"/>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
