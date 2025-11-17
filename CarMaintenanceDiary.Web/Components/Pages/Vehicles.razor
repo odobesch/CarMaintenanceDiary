@@ -1,231 +1,442 @@
 ﻿@page "/vehicles"
+@using Microsoft.AspNetCore.Components.Authorization
+@using CarMaintenanceDiary.Web.Shared
 @using CarMaintenanceDiary.Application.Interfaces
 @using CarMaintenanceDiary.Shared.DTOs
+@using Microsoft.AspNetCore.Components.Forms
+@inject IJSRuntime JS
 @inject IVehicleService VehicleService
 @inject ToastService ToastService
 @inject ILogger<Vehicles> Logger
 
-<h3 class="mb-3">My Vehicles</h3>
+<style>
+    .photo-thumbnail img {
+        width: 300px;
+        height: 150px;
+        object-fit: cover;
+        border: 1px solid #ccc;
+        cursor: pointer;
+        display: block;
+    }
 
-@if (isLoading)
-{
-    <div class="loading-overlay">
-        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-    </div>
-}
-else
-{
-    <button class="btn btn-success mb-3" @onclick="OpenAddModal">Add Vehicle</button>
+    .photo-actions {
+        margin-top: 6px;
+    }
 
-    if (!vehicles.Any())
+    /* detail modal sizing */
+    .vehicle-photo-detail .modal-dialog {
+        max-width: 90vw;
+    }
+
+    .vehicle-photo-detail .modal-body {
+        text-align: center;
+    }
+
+        .vehicle-photo-detail .modal-body img {
+            max-width: 90vw;
+            max-height: 85vh;
+            object-fit: contain;
+        }
+</style>
+
+<RequireAuthentication>
+    <h3 class="mb-3">My Vehicles</h3>
+
+    @if (isLoading)
     {
-        <div class="alert alert-warning" role="alert">
-            <strong>No vehicles found!</strong> Please add a vehicle to manage records.
+        <div class="loading-overlay">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
         </div>
     }
     else
-    { 
-        <Grid TItem="VehicleDto"
-        Class="table table-hover table-bordered table-striped"
-        Data="@vehicles"
-        AllowFiltering="true"
-        AllowPaging="true" PageSize="10"
-        PageSizeSelectorVisible="true"
-        PageSizeSelectorItems="@(new int[] { 5,10,20 })"
-        AllowSorting="true"
-        AllowSelection="false"
-        SelectionMode="GridSelectionMode.Single"
-        Responsive="true">
-
-            <GridColumns>
-                <GridColumn TItem="VehicleDto" HeaderText="Make" PropertyName="Make" SortKeySelector="v => v.Make"
-                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
-                    @context.Make
-                </GridColumn>
-                <GridColumn TItem="VehicleDto" HeaderText="Model" PropertyName="Model" SortKeySelector="v => v.Model"
-                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
-                    @context.Model
-                </GridColumn>
-                <GridColumn TItem="VehicleDto" HeaderText="Year" PropertyName="Year" SortKeySelector="v => v.Year"
-                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
-                    @context.Year
-                </GridColumn>
-                <GridColumn TItem="VehicleDto" HeaderText="License Plate" PropertyName="LicensePlate" SortKeySelector="v => v.LicensePlate"
-                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
-                    @context.LicensePlate
-                </GridColumn>
-                <GridColumn TItem="VehicleDto" HeaderText="VIN" PropertyName="VIN" SortKeySelector="v => v.VIN"
-                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
-                    @context.VIN
-                </GridColumn>
-
-                <GridColumn TItem="VehicleDto" HeaderText="Actions">
-                    <button class="btn btn-sm btn-primary me-1" @onclick="() => EditVehicle(context)">Edit</button>
-                    <button class="btn btn-sm btn-danger" @onclick="() => DeleteVehicle(context.Id)">Delete</button>
-                </GridColumn>
-            </GridColumns>            
-        </Grid>
-    }    
-}
-
-<Modal @ref="modal" Title="@ModalTitle">
-    <BodyTemplate>
-        <EditForm Model="formVehicle" OnValidSubmit="SaveVehicle" id="vehicle-form">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-
-            <div class="mb-2">
-                <label>Make</label>
-                <InputText class="form-control" @bind-Value="formVehicle.Make" />
-                <ValidationMessage For="@(() => formVehicle.Make)" />
-            </div>
-
-            <div class="mb-2">
-                <label>Model</label>
-                <InputText class="form-control" @bind-Value="formVehicle.Model" />
-                <ValidationMessage For="@(() => formVehicle.Model)" />
-            </div>
-
-            <div class="mb-2">
-                <label>Year</label>
-                <InputText class="form-control" @bind-Value="formVehicle.Year" />
-                <ValidationMessage For="@(() => formVehicle.Year)" />
-            </div>
-
-            <div class="mb-2">
-                <label>License plate</label>
-                <InputText class="form-control" @bind-Value="formVehicle.LicensePlate" />
-                <ValidationMessage For="@(() => formVehicle.LicensePlate)" />
-            </div>
-
-            <div class="mb-2">
-                <label>VIN</label>
-                <InputText class="form-control" @bind-Value="formVehicle.VIN" />
-                <ValidationMessage For="@(() => formVehicle.VIN)" />
-            </div>
-        </EditForm>
-    </BodyTemplate>
-    <FooterTemplate>
-        <Button Color="ButtonColor.Secondary" @onclick="CloseModal">Close</Button>
-        <button type="submit" class="btn btn-primary" form="vehicle-form">Save</button>
-    </FooterTemplate>
-</Modal>
-
-<ConfirmDialog @ref="confirmDialog" />
-
-@code {
-       
-    private List<VehicleDto> vehicles = new();
-    private VehicleDto formVehicle = new();
-    private bool editMode = false;
-    private bool isLoading = true;
-    private Modal? modal;
-    private string ModalTitle => editMode ? "Edit Vehicle" : "Add Vehicle";
-    private ConfirmDialog confirmDialog = default!;
-
-    protected override async Task OnInitializedAsync()
     {
-        await LoadVehicles();
-    }
+        <button class="btn btn-success mb-3" @onclick="OpenAddModal">Add Vehicle</button>
 
-    private async Task LoadVehicles()
-    {     
-        isLoading = true;
-        vehicles = await VehicleService.GetAllAsync();
-        isLoading = false;
-    }
-
-    private void OpenAddModal()
-    {
-        formVehicle = new();
-        editMode = false;
-        modal?.ShowAsync();
-    }
-
-    private void EditVehicle(VehicleDto vehicle)
-    {
-        formVehicle = new VehicleDto
+        if (!vehicles.Any())
         {
-            Id = vehicle.Id,
-            Make = vehicle.Make,
-            Model = vehicle.Model,
-            Year = vehicle.Year,
-            LicensePlate = vehicle.LicensePlate.ToUpper(),
-            VIN = vehicle.VIN
-        };
-        editMode = true;
-        modal?.ShowAsync();
-    }
-
-    private void CloseModal()
-    {
-        modal?.HideAsync();
-    }
-
-    private async Task SaveVehicle()
-    {
-        if (editMode)
-        {
-            try
-            {
-                await VehicleService.UpdateAsync(formVehicle);
-                ToastService.Notify(new ToastMessage(ToastType.Success,"Vehicle updated."));
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Error updating vehicle with ID {Id}", formVehicle.Id);
-                ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to update vehicle."));
-            }            
+            <div class="alert alert-warning" role="alert">
+                <strong>No vehicles found!</strong> Please add a vehicle to manage records.
+            </div>
         }
         else
+        { 
+            <Grid TItem="VehicleDto"
+            Class="table table-hover table-bordered table-striped"
+            Data="@vehicles"
+            AllowFiltering="true"
+            AllowPaging="true" PageSize="10"
+            PageSizeSelectorVisible="true"
+            PageSizeSelectorItems="@(new int[] { 5,10,20 })"
+            AllowSorting="true"
+            AllowSelection="false"
+            SelectionMode="GridSelectionMode.Single"
+            Responsive="true">
+
+                <GridColumns>
+                    <GridColumn TItem="VehicleDto" HeaderText="Make" PropertyName="Make" SortKeySelector="v => v.Make"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                        @context.Make
+                    </GridColumn>
+                    <GridColumn TItem="VehicleDto" HeaderText="Model" PropertyName="Model" SortKeySelector="v => v.Model"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                        @context.Model
+                    </GridColumn>
+                    <GridColumn TItem="VehicleDto" HeaderText="Year" PropertyName="Year" SortKeySelector="v => v.Year"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                        @context.Year
+                    </GridColumn>
+                    <GridColumn TItem="VehicleDto" HeaderText="License Plate" PropertyName="LicensePlate" SortKeySelector="v => v.LicensePlate"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                        @context.LicensePlate
+                    </GridColumn>
+                    <GridColumn TItem="VehicleDto" HeaderText="VIN" PropertyName="VIN" SortKeySelector="v => v.VIN"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                        @context.VIN
+                    </GridColumn>
+
+                    <GridColumn TItem="VehicleDto" HeaderText="Actions">
+                        <button class="btn btn-sm btn-secondary me-1" @onclick="() => OpenVehiclePhotos(context)">Images</button>
+                        <button class="btn btn-sm btn-primary me-1" @onclick="() => EditVehicle(context)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteVehicle(context.Id)">Delete</button>
+                    </GridColumn>
+                </GridColumns>            
+            </Grid>
+        }    
+    }
+
+    <Modal @ref="modal" Title="@ModalTitle">
+        <BodyTemplate>
+            <EditForm Model="formVehicle" OnValidSubmit="SaveVehicle" id="vehicle-form">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="mb-2">
+                    <label>Make</label>
+                    <InputText class="form-control" @bind-Value="formVehicle.Make" />
+                    <ValidationMessage For="@(() => formVehicle.Make)" />
+                </div>
+
+                <div class="mb-2">
+                    <label>Model</label>
+                    <InputText class="form-control" @bind-Value="formVehicle.Model" />
+                    <ValidationMessage For="@(() => formVehicle.Model)" />
+                </div>
+
+                <div class="mb-2">
+                    <label>Year</label>
+                    <InputText class="form-control" @bind-Value="formVehicle.Year" />
+                    <ValidationMessage For="@(() => formVehicle.Year)" />
+                </div>
+
+                <div class="mb-2">
+                    <label>License plate</label>
+                    <InputText class="form-control" @bind-Value="formVehicle.LicensePlate" />
+                    <ValidationMessage For="@(() => formVehicle.LicensePlate)" />
+                </div>
+
+                <div class="mb-2">
+                    <label>VIN</label>
+                    <InputText class="form-control" @bind-Value="formVehicle.VIN" />
+                    <ValidationMessage For="@(() => formVehicle.VIN)" />
+                </div>
+            </EditForm>
+        </BodyTemplate>
+        <FooterTemplate>
+            <Button Color="ButtonColor.Secondary" @onclick="CloseModal">Close</Button>
+            <button type="submit" class="btn btn-primary" form="vehicle-form">Save</button>
+        </FooterTemplate>
+    </Modal>
+
+    <Modal @ref="photoModal" Title="Vehicle Images">
+        <BodyTemplate>
+            <div class="mb-2">
+                <label>Upload photos</label>
+                <InputFile OnChange="UploadPhotoFiles" multiple />
+            </div>
+
+            <div class="d-flex flex-wrap">
+                @if (photoIdsForVehicle?.Any() == true)
+                {
+                    foreach (var pid in photoIdsForVehicle)
+                    {
+                        <div class="m-2 text-center photo-thumbnail">
+                            <img src="@VehicleService.GetPhotoUrl(pid, 300, 150)"
+                                 srcset="@VehicleService.GetPhotoUrl(pid, 300, 150) 1x,
+                            @VehicleService.GetPhotoUrl(pid, 300, 150, dpr: 2) 2x"
+                                 width="300" height="150"
+                                 loading="lazy" decoding="async"
+                                 @onclick="() => ShowPhotoDetail(pid)" />
+                            <div class="mt-1 photo-actions">
+                                <button class="btn btn-sm btn-danger" @onclick="() => DeletePhoto(pid)">Delete</button>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div>No photos for this vehicle.</div>
+                }
+            </div>
+        </BodyTemplate>
+        <FooterTemplate>
+            <Button Color="ButtonColor.Secondary" @onclick="ClosePhotoModal">Close</Button>
+        </FooterTemplate>
+    </Modal>
+
+    <Modal @ref="photoDetailModal" Title="Image Detail" Class="vehicle-photo-detail">
+        <BodyTemplate>
+            @if (!string.IsNullOrEmpty(selectedPhotoUrl))
+            {
+                <div class="text-center">
+                    <img src="@selectedPhotoUrl" />
+                </div>
+            }
+            else
+            {
+                <div>Loading...</div>
+            }
+        </BodyTemplate>
+        <FooterTemplate>
+            @if (!string.IsNullOrEmpty(selectedPhotoUrl))
+            {
+                <a class="btn btn-link" href="@selectedPhotoUrl" target="_blank" rel="noopener">Open in new tab</a>
+                <button class="btn btn-sm btn-secondary ms-2" @onclick="DownloadPhoto">Download</button>
+            }
+            <Button Color="ButtonColor.Secondary" @onclick="ClosePhotoDetailModal">Close</Button>
+        </FooterTemplate>
+    </Modal>
+
+    <ConfirmDialog @ref="confirmDialog" />
+
+    @code {
+        private const long MaxUploadBytes = 10_000_000;
+        private List<VehicleDto> vehicles = new();
+        private VehicleDto formVehicle = new();
+        private bool editMode = false;
+        private bool isLoading = true;
+        private Modal? modal;
+        private string ModalTitle => editMode ? "Edit Vehicle" : "Add Vehicle";
+        private ConfirmDialog confirmDialog = default!;
+
+        private Modal? photoModal;
+        private Modal? photoDetailModal;
+        private int photoVehicleId;
+        private List<int> photoIdsForVehicle = new();
+        private int? selectedPhotoId;
+        private string? selectedPhotoUrl;
+
+        protected override async Task OnInitializedAsync()
         {
+            await LoadVehicles();
+        }
+
+        private async Task LoadVehicles()
+        {     
+            isLoading = true;
+            vehicles = await VehicleService.GetAllAsync();
+            isLoading = false;
+        }
+
+        private void OpenAddModal()
+        {
+            formVehicle = new();
+            editMode = false;
+            modal?.ShowAsync();
+        }
+
+        private void EditVehicle(VehicleDto vehicle)
+        {
+            formVehicle = new VehicleDto
+            {
+                Id = vehicle.Id,
+                Make = vehicle.Make,
+                Model = vehicle.Model,
+                Year = vehicle.Year,
+                LicensePlate = vehicle.LicensePlate.ToUpper(),
+                VIN = vehicle.VIN
+            };
+            editMode = true;
+            modal?.ShowAsync();
+        }
+
+        private void CloseModal()
+        {
+            modal?.HideAsync();
+        }
+
+        private async Task SaveVehicle()
+        {
+            if (editMode)
+            {
+                try
+                {
+                    await VehicleService.UpdateAsync(formVehicle);
+                    ToastService.Notify(new ToastMessage(ToastType.Success,"Vehicle updated."));
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Error updating vehicle with ID {Id}", formVehicle.Id);
+                    ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to update vehicle."));
+                }            
+            }
+            else
+            {
+                try
+                {
+                    if (await VehicleService.LicensePlateExistsAsync(formVehicle.LicensePlate))
+                    {
+                        await modal!.HideAsync();
+                        ToastService.Notify(new ToastMessage(ToastType.Warning, $"A car with license plate {formVehicle.LicensePlate.ToUpper()} already exists."));
+                        return;
+                    }
+
+                    await VehicleService.AddAsync(formVehicle);
+                    ToastService.Notify(new ToastMessage(ToastType.Success, $"Vehicle with {formVehicle.LicensePlate.ToUpper()} created."));
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Error creating vehicle with ID {Id}", formVehicle.Id);
+                    ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to create vehicle."));
+                }            
+            }
+
+            formVehicle = new();
+            editMode = false;
+            modal?.HideAsync();
+            await LoadVehicles();
+        }
+
+        private async Task DeleteVehicle(int id)
+        {
+            var vehicle = vehicles.FirstOrDefault(v => v.Id == id);
+            if (vehicle is null)
+                return;
+           
+            var confirmed = await confirmDialog.ShowAsync($"Delete vehicle", $"Delete vehicle {vehicle.Make} {vehicle.Model}?");
+            if (!confirmed)
+                return;
+
             try
             {
-                if (await VehicleService.LicensePlateExistsAsync(formVehicle.LicensePlate))
-                {
-                    await modal!.HideAsync();
-                    ToastService.Notify(new ToastMessage(ToastType.Warning, $"A car with license plate {formVehicle.LicensePlate.ToUpper()} already exists."));
-                    return;
-                }
-
-                await VehicleService.AddAsync(formVehicle);
-                ToastService.Notify(new ToastMessage(ToastType.Success, $"Vehicle with {formVehicle.LicensePlate.ToUpper()} created."));
+                await VehicleService.DeleteAsync(id);
+                await LoadVehicles();
+                ToastService.Notify(new ToastMessage(ToastType.Success, $"Vehicle with license plate {vehicle.LicensePlate.ToUpper()} deleted."));
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Error creating vehicle with ID {Id}", formVehicle.Id);
-                ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to create vehicle."));
-            }            
+                Logger.LogError(ex, "Error deleting vehicle with ID {Id}", id);
+                ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to delete vehicle."));
+            }
+        }   
+        private async Task OpenVehiclePhotos(VehicleDto vehicle)
+        {
+            photoVehicleId = vehicle.Id;
+
+            try
+            {
+                // Use the new API client method that returns photo ids
+                photoIdsForVehicle = await VehicleService.GetPhotoIdsAsync(photoVehicleId);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to load vehicle photos for vehicle {Id}", photoVehicleId);
+                ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to load vehicle photos."));
+                photoIdsForVehicle = new List<int>();
+            }
+
+            await photoModal?.ShowAsync();
         }
 
-        formVehicle = new();
-        editMode = false;
-        modal?.HideAsync();
-        await LoadVehicles();
+        private async Task ClosePhotoModal()
+        {
+            await photoModal?.HideAsync();
+            photoIdsForVehicle.Clear();
+        }
+
+        private string PhotoUrl(
+        int id,
+        int? w = null,
+        int? h = null,
+        string mode = "crop",
+        int dpr = 1,
+        string? format = null,
+        int? q = null)
+        {
+            return (w.HasValue && h.HasValue)
+                ? VehicleService.GetPhotoUrl(id, w.Value, h.Value, mode, dpr, format, q)
+                : VehicleService.GetPhotoUrl(id);
+        }
+
+        private async Task ShowPhotoDetail(int photoId)
+        {
+            selectedPhotoId = photoId;
+            selectedPhotoUrl = PhotoUrl(photoId);
+            await photoDetailModal?.ShowAsync();
+        }
+
+        private async Task ClosePhotoDetailModal()
+        {
+            selectedPhotoId = null;
+            selectedPhotoUrl = null;
+            await photoDetailModal?.HideAsync();
+        }
+
+        private async Task DownloadPhoto()
+        {
+            if (string.IsNullOrEmpty(selectedPhotoUrl))
+                return;
+            await JS.InvokeVoidAsync("open", selectedPhotoUrl, "_blank");
+        }
+
+        private async Task UploadPhotoFiles(InputFileChangeEventArgs e)
+        {
+            if (photoVehicleId == 0)
+            {
+                ToastService.Notify(new ToastMessage(ToastType.Warning, "No vehicle selected for upload."));
+                return;
+            }
+
+            foreach (var file in e.GetMultipleFiles())
+            {
+                await using var stream = file.OpenReadStream(MaxUploadBytes);
+                try
+                {
+                    var uploadedId = await VehicleService.UploadPhotoAsync(photoVehicleId, stream, file.Name, file.ContentType);
+                    // after server implementation refresh the list:
+                    // var dto = await VehicleService.GetByIdAsync(photoVehicleId);
+                    // photoIdsForVehicle = dto?.PhotoIds ?? new List<int>();
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Photo upload failed.");
+                    ToastService.Notify(new ToastMessage(ToastType.Danger, "Photo upload failed."));
+                }
+            }
+
+            if (vehicles.Any(v => v.Id == photoVehicleId))
+                await LoadVehicles();
+        }
+
+        private async Task DeletePhoto(int photoId)
+        {
+            try
+            {
+                await VehicleService.DeletePhotoAsync(photoId);
+                photoIdsForVehicle.Remove(photoId);
+
+                if (selectedPhotoId == photoId)
+                    await ClosePhotoDetailModal();
+
+                if (vehicles.Any(v => v.Id == photoVehicleId))
+                    await LoadVehicles();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to delete photo.");
+                ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to delete photo."));
+            }
+        }
     }
-
-    private async Task DeleteVehicle(int id)
-    {
-        var vehicle = vehicles.FirstOrDefault(v => v.Id == id);
-        if (vehicle is null)
-            return;
-       
-        var confirmed = await confirmDialog.ShowAsync($"Delete vehicle", $"Delete vehicle {vehicle.Make} {vehicle.Model}?");
-        if (!confirmed)
-            return;
-
-        try
-        {
-            await VehicleService.DeleteAsync(id);
-            await LoadVehicles();
-            ToastService.Notify(new ToastMessage(ToastType.Success, $"Vehicle with license plate {vehicle.LicensePlate.ToUpper()} deleted."));
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error deleting vehicle with ID {Id}", id);
-            ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to delete vehicle."));
-        }
-    }    
-}
+</RequireAuthentication>

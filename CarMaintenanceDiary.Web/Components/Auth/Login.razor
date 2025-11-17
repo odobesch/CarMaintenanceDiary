@@ -1,0 +1,112 @@
+@page "/auth/login"
+@using CarMaintenanceDiary.Web.Services
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.WebUtilities
+@inject IHttpClientFactory HttpFactory
+@inject JwtAuthenticationStateProvider AuthProvider
+@inject ITokenStore TokenStore
+@inject NavigationManager Navigation
+
+<h3>Login</h3>
+
+<EditForm Model="model" OnValidSubmit="HandleValidSubmit">
+	<DataAnnotationsValidator />
+	<ValidationSummary />
+
+	<div class="mb-3">
+		<label class="form-label">Email</label>
+		<InputText class="form-control" @bind-Value="model.Email" />
+		<ValidationMessage For="() => model.Email" />
+	</div>
+
+	<div class="mb-3">
+		<label class="form-label">Password</label>
+		<InputText class="form-control" type="password" @bind-Value="model.Password" />
+		<ValidationMessage For="() => model.Password" />
+	</div>
+
+	@if (!string.IsNullOrEmpty(serverError))
+	{
+		<div class="alert alert-danger">@serverError</div>
+	}
+
+	<button class="btn btn-primary" type="submit" disabled="@isSubmitting">
+		@(isSubmitting ? "Logging in..." : "Login")
+	</button>
+</EditForm>
+
+@code {
+	private LoginModel model = new();
+	private bool isSubmitting;
+	private string? serverError;
+	private string? returnUrl;
+
+	protected override void OnInitialized()
+	{
+		// read returnUrl query param if present
+		var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+		if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("returnUrl", out var vals))
+		{
+			returnUrl = vals.FirstOrDefault();
+		}
+	}
+
+	private async Task HandleValidSubmit()
+	{
+		isSubmitting = true;
+		serverError = null;
+
+		try
+		{
+			var client = HttpFactory.CreateClient("Api");
+			var response = await client.PostAsJsonAsync("api/auth/login", new { Email = model.Email, Password = model.Password });
+			if (response.IsSuccessStatusCode)
+			{
+				var payload = await response.Content.ReadFromJsonAsync<LoginResult>();
+				if (payload is not null && !string.IsNullOrEmpty(payload.Token))
+				{
+					// store both access and refresh tokens
+					await TokenStore.SetTokensAsync(payload.Token, payload.RefreshToken);
+					await AuthProvider.MarkUserAsAuthenticatedAsync(payload.Token);
+					Navigation.NavigateTo(returnUrl ?? "/");
+					return;
+				}
+
+				serverError = "Login succeeded but token was not returned.";
+			}
+			else
+			{
+				// try to read error details
+				string text = string.Empty;
+				try { text = await response.Content.ReadAsStringAsync(); } catch { }
+				serverError = string.IsNullOrEmpty(text) ? "Invalid credentials." : text;
+			}
+		}
+		catch (Exception ex)
+		{
+			serverError = ex.Message;
+		}
+		finally
+		{
+			isSubmitting = false;
+		}
+	}
+
+	private class LoginModel
+	{
+		[Required]
+		[EmailAddress]
+		public string Email { get; set; } = string.Empty;
+
+		[Required]
+		[MinLength(6)]
+		public string Password { get; set; } = string.Empty;
+	}
+
+	private class LoginResult
+	{
+		public string Token { get; set; } = string.Empty;
+		public string RefreshToken { get; set; } = string.Empty;
+		public DateTimeOffset ExpiresAt { get; set; }
+	}
+}

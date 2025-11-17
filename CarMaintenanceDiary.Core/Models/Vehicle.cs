@@ -17,5 +17,6 @@ namespace CarMaintenanceDiary.Core.Models
     
         public ICollection<MaintenanceRecord> MaintenanceRecords { get; set; } = new List<MaintenanceRecord>();
         public ICollection<FuelRecord> FuelEntries { get; set; } = new List<FuelRecord>();
+        public ICollection<VehiclePhoto> Photos { get; set; } = new List<VehiclePhoto>();
     }
 }

@@ -11,5 +11,9 @@ namespace CarMaintenanceDiary.Application.Interfaces
         Task<List<MonthlyFuelSummaryDto>> GetMonthlyFuelSummariesAsync(int vehicleId);
         Task<List<YearlyFuelSummaryDto>> GetYearlyFuelSummariesAsync(int vehicleId);
         Task<FuelRecordDto?> GetFuelRecordByIdAsync(int recordId);
+        Task<int?> UploadPhotoAsync(int recordId, Stream fileStream, string fileName, string? contentType = null);
+        Task DeletePhotoAsync(int photoId);
+        string GetPhotoUrl(int photoId);
+        string GetPhotoUrl(int photoId, int w, int h, string mode = "crop", int dpr = 1, string? format = null, int? q = null);
     }
 }
