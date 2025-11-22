@@ -46,6 +46,12 @@
     </Dropdown>
 </div>
 
+<AuthorizeView Roles="Admin">
+    <Authorized>
+        <UserManagement />
+    </Authorized>
+</AuthorizeView>
+
 @code {
    
 }

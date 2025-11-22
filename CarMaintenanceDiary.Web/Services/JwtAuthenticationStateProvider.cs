@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 namespace CarMaintenanceDiary.Web.Services
 {
@@ -8,9 +9,12 @@ namespace CarMaintenanceDiary.Web.Services
     {
         private readonly ITokenStore _tokenStore;
         private readonly JwtSecurityTokenHandler _handler = new();
-        public JwtAuthenticationStateProvider(ITokenStore tokenStore)
+        private readonly ProtectedSessionStorage _sessionStorage;
+
+        public JwtAuthenticationStateProvider(ITokenStore tokenStore, ProtectedSessionStorage sessionStorage)
         {
             _tokenStore = tokenStore;
+            _sessionStorage = sessionStorage;
             _tokenStore.TokenChanged += OnTokenChanged;
         }
 
@@ -19,13 +23,34 @@ namespace CarMaintenanceDiary.Web.Services
             NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
         }
 
-        public override Task<AuthenticationState> GetAuthenticationStateAsync()
+        public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
+            // First try the in-memory store
             var token = _tokenStore.GetToken();
+
+            // If not present in memory, try to load from browser session storage
+            if (string.IsNullOrEmpty(token))
+            {
+                try
+                {
+                    var result = await _sessionStorage.GetAsync<string>("accessToken");
+                    if (result.Success && !string.IsNullOrEmpty(result.Value))
+                    {
+                        token = result.Value;
+                        // update in-memory cache so subsequent sync callers see it
+                        await _tokenStore.SetTokenAsync(token);
+                    }
+                }
+                catch
+                {
+                    // ignore storage issues; fall back to anonymous
+                }
+            }
+
             if (string.IsNullOrEmpty(token))
             {
                 var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
-                return Task.FromResult(new AuthenticationState(anonymous));
+                return new AuthenticationState(anonymous);
             }
 
             try
@@ -33,12 +58,12 @@ namespace CarMaintenanceDiary.Web.Services
                 var jwt = _handler.ReadJwtToken(token);
                 var identity = new ClaimsIdentity(jwt.Claims, "jwt");
                 var user = new ClaimsPrincipal(identity);
-                return Task.FromResult(new AuthenticationState(user));
+                return new AuthenticationState(user);
             }
             catch
             {
                 var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
-                return Task.FromResult(new AuthenticationState(anonymous));
+                return new AuthenticationState(anonymous);
             }
         }
 

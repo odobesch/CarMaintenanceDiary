@@ -1,0 +1,472 @@
+﻿@using BlazorBootstrap
+@using CarMaintenanceDiary.Shared.DTOs
+@using Microsoft.AspNetCore.Authorization
+@using System.Net.Http.Headers
+@using System.Drawing
+@using CarMaintenanceDiary.Application.Interfaces
+@inject IUserManagementService UserManagementService
+@rendermode InteractiveServer
+
+<section id="user-management" class="mb-5">
+    <Card>
+        <CardHeader>
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="bi bi-people-fill me-2"></i>User Management</h4>
+                <Button Color="ButtonColor.Primary" @onclick="OpenCreateUserModal">
+                    <i class="bi bi-plus-circle me-1"></i> Create User
+                </Button>
+            </div>
+        </CardHeader>
+        <CardBody>
+            @if (users == null)
+            {
+                <div class="text-center py-4">
+                    <Spinner Color="SpinnerColor.Primary" />
+                    <p class="mt-2">Loading users...</p>
+                </div>
+            }
+            else if (!users.Any())
+            {
+                <p class="text-muted">No users found.</p>
+            }
+            else
+            {
+                <Grid TItem="UserDto"
+                      Class="table table-hover table-bordered table-striped"
+                      DataProvider="UsersDataProvider"
+                      AllowFiltering="true"
+                      AllowPaging="true"
+                      PageSize="10"
+                      AllowSorting="true"
+                      Responsive="true">
+
+                    <GridColumn TItem="UserDto" HeaderText="Profile" PropertyName="ProfilePictureUrl">
+                        @if (!string.IsNullOrEmpty(context.ProfilePictureUrl))
+                        {
+                            <img src="@context.ProfilePictureUrl" alt="Profile" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;" />
+                        }
+                        else
+                        {
+                            <i class="bi bi-person-circle" style="font-size: 40px;"></i>
+                        }
+                    </GridColumn>
+
+                    <GridColumn TItem="UserDto" HeaderText="Email" PropertyName="Email" SortKeySelector="@(x => x.Email)">
+                        @context.Email
+                    </GridColumn>
+
+                    <GridColumn TItem="UserDto" HeaderText="Username" PropertyName="UserName">
+                        @context.UserName
+                    </GridColumn>
+
+                    <GridColumn TItem="UserDto" HeaderText="Phone" PropertyName="PhoneNumber">
+                        @context.PhoneNumber
+                    </GridColumn>
+
+                    <GridColumn TItem="UserDto" HeaderText="Roles" PropertyName="Roles">
+                        @string.Join(", ", context.Roles)
+                    </GridColumn>
+
+                    <GridColumn TItem="UserDto" HeaderText="Status">
+                        @if (context.LockoutEnd.HasValue && context.LockoutEnd > DateTimeOffset.UtcNow)
+                        {
+                            <Badge Color="BadgeColor.Danger">Locked</Badge>
+                        }
+                        else
+                        {
+                            <Badge Color="BadgeColor.Success">Active</Badge>
+                        }
+                    </GridColumn>
+
+                    <GridColumn TItem="UserDto" HeaderText="Actions">
+                        <div class="btn-group" role="group">
+                            <Button Color="ButtonColor.Primary" @onclick="() => OpenEditUserModal(context)">
+                                <i class="bi bi-pencil"></i>
+                            </Button>
+                            <Button Color="ButtonColor.Warning" @onclick="() => OpenChangePasswordModal(context)">
+                                <i class="bi bi-key"></i>
+                            </Button>
+                            <Button Color="ButtonColor.Danger" @onclick="() => OpenDeleteUserModal(context)">
+                                <i class="bi bi-trash"></i>
+                            </Button>
+                        </div>
+                    </GridColumn>
+                </Grid>
+            }
+        </CardBody>
+    </Card>
+</section>
+
+<!-- Create/Edit User Modal -->
+<Modal @ref="userModal" Title="@(editingUser == null ? "Create User" : "Edit User")" Size="ModalSize.Large">
+    <BodyTemplate>
+        <div class="mb-3">
+            <label class="form-label">Email *</label>
+            <input type="email" class="form-control" @bind="userForm.Email" required />
+        </div>
+
+        @if (editingUser == null)
+        {
+            <div class="mb-3">
+                <label class="form-label">Password *</label>
+                <input type="password" class="form-control" @bind="userForm.Password" required />
+            </div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label">Phone Number</label>
+            <input type="tel" class="form-control" @bind="userForm.PhoneNumber" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Roles</label>
+            @if (availableRoles != null)
+            {
+                @foreach (var role in availableRoles)
+                {
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox"
+                               checked="@userForm.Roles.Contains(role)"
+                               @onchange="e => ToggleRole(role, (bool)e.Value!)" />
+                        <label class="form-check-label">@role</label>
+                    </div>
+                }
+            }
+        </div>
+
+        @if (editingUser != null)
+        {
+            <div class="mb-3">
+                <label class="form-label">Profile Picture</label>
+                <InputFile OnChange="HandleProfilePictureUpload" class="form-control" accept="image/*" />
+                @if (!string.IsNullOrEmpty(editingUser.ProfilePictureUrl))
+                {
+                    <div class="mt-2">
+                        <img src="@editingUser.ProfilePictureUrl" alt="Current Profile" class="img-thumbnail" style="max-width: 200px;" />
+                        <Button Color="ButtonColor.Danger" @onclick="DeleteProfilePicture" class="ms-2">
+                            Delete Picture
+                        </Button>
+                    </div>
+                }
+            </div>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <Button Color="ButtonColor.Secondary" @onclick="CloseUserModal">Cancel</Button>
+        <Button Color="ButtonColor.Primary" @onclick="SaveUser">Save</Button>
+    </FooterTemplate>
+</Modal>
+
+<!-- Change Password Modal -->
+<Modal @ref="passwordModal" Title="Change Password">
+    <BodyTemplate>
+        <div class="mb-3">
+            <label class="form-label">Current Password</label>
+            <input type="password" class="form-control" @bind="passwordForm.CurrentPassword" />
+            <small class="text-muted">Leave empty if admin is resetting password</small>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">New Password *</label>
+            <input type="password" class="form-control" @bind="passwordForm.NewPassword" required />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Confirm New Password *</label>
+            <input type="password" class="form-control" @bind="passwordForm.ConfirmPassword" required />
+        </div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <Button Color="ButtonColor.Secondary" @onclick="ClosePasswordModal">Cancel</Button>
+        <Button Color="ButtonColor.Primary" @onclick="ChangePassword">Change Password</Button>
+    </FooterTemplate>
+</Modal>
+
+<!-- Delete Confirmation Modal -->
+<ConfirmDialog @ref="deleteDialog" />
+
+@code {
+    private List<UserDto>? users;
+    private List<string>? availableRoles;
+    private UserDto? editingUser;
+
+    private Modal userModal = default!;
+    private Modal passwordModal = default!;
+    private ConfirmDialog deleteDialog = default!;
+
+    private UserFormModel userForm = new();
+    private PasswordFormModel passwordForm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+        await LoadRoles();
+    }
+
+    private async Task LoadUsers()
+    {
+        try
+        {
+            users = await UserManagementService.GetAllUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            //ToastService.ShowError($"Failed to load users: {ex.Message}");
+        }
+    }
+
+    private async Task LoadRoles()
+    {
+        try
+        {
+            availableRoles = await UserManagementService.GetRolesAsync();
+        }
+        catch (Exception ex)
+        {
+            //ToastService.ShowError($"Failed to load roles: {ex.Message}");
+        }
+    }
+
+    private async Task<GridDataProviderResult<UserDto>> UsersDataProvider(GridDataProviderRequest<UserDto> request)
+    {
+        return await Task.FromResult(request.ApplyTo(users ?? new()));
+    }
+
+    private void OpenCreateUserModal()
+    {
+        editingUser = null;
+        userForm = new UserFormModel();
+        userModal.ShowAsync();
+    }
+
+    private void OpenEditUserModal(UserDto user)
+    {
+        editingUser = user;
+        userForm = new UserFormModel
+        {
+            Email = user.Email,
+            PhoneNumber = user.PhoneNumber,
+            Roles = user.Roles.ToList()
+        };
+        userModal.ShowAsync();
+    }
+
+    private void CloseUserModal()
+    {
+        userModal.HideAsync();
+        editingUser = null;
+        userForm = new();
+    }
+
+    private async Task SaveUser()
+    {
+        try
+        {
+            if (editingUser == null)
+            {
+                // Create new user
+                var request = new CreateUserRequest(
+                    userForm.Email!,
+                    userForm.Password!,
+                    userForm.PhoneNumber,
+                    userForm.Roles
+                );
+                await UserManagementService.CreateUserAsync(request);
+                //ToastService.ShowSuccess("User created successfully");
+            }
+            else
+            {
+                // Update existing user
+                var request = new UpdateUserRequest(
+                    editingUser.Id,
+                    userForm.Email!,
+                    userForm.Email,
+                    userForm.PhoneNumber,
+                    userForm.Roles
+                );
+                await UserManagementService.UpdateUserAsync(editingUser.Id, request);
+                //ToastService.ShowSuccess("User updated successfully");
+            }
+
+            await LoadUsers();
+            CloseUserModal();
+        }
+        catch (Exception ex)
+        {
+            //ToastService.ShowError($"Failed to save user: {ex.Message}");
+        }
+    }
+
+    private void OpenChangePasswordModal(UserDto user)
+    {
+        editingUser = user;
+        passwordForm = new PasswordFormModel();
+        passwordModal.ShowAsync();
+    }
+
+    private void ClosePasswordModal()
+    {
+        passwordModal.HideAsync();
+        editingUser = null;
+        passwordForm = new();
+    }
+
+    private async Task ChangePassword()
+    {
+        if (editingUser == null || string.IsNullOrEmpty(passwordForm.NewPassword))
+            return;
+
+        if (passwordForm.NewPassword != passwordForm.ConfirmPassword)
+        {
+            //ToastService.ShowWarning("Passwords do not match");
+            return;
+        }
+
+        try
+        {
+            if (!string.IsNullOrEmpty(passwordForm.CurrentPassword))
+            {
+                // User changing their own password
+                var request = new ChangePasswordRequest(
+                    editingUser.Id,
+                    passwordForm.CurrentPassword,
+                    passwordForm.NewPassword
+                );
+                await UserManagementService.ChangePasswordAsync(editingUser.Id, request);
+            }
+            else
+            {
+                // Admin resetting password
+                var request = new ResetPasswordRequest(editingUser.Id, passwordForm.NewPassword);
+                await UserManagementService.ResetPasswordAsync(editingUser.Id, request);
+            }
+
+            //ToastService.ShowSuccess("Password changed successfully");
+            ClosePasswordModal();
+        }
+        catch (Exception ex)
+        {
+            //ToastService.ShowError($"Failed to change password: {ex.Message}");
+        }
+    }
+
+    private async Task OpenDeleteUserModal(UserDto user)
+    {
+        var confirmation = await deleteDialog.ShowAsync(
+            title: "Delete User",
+            message1: $"Are you sure you want to delete user '{user.Email}'?",
+            message2: "This action cannot be undone.");
+
+        if (confirmation)
+        {
+            await DeleteUser(user.Id);
+        }
+    }
+
+    private async Task DeleteUser(string userId)
+    {
+        try
+        {
+            await UserManagementService.DeleteUserAsync(userId);
+            //ToastService.ShowSuccess("User deleted successfully");
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            //ToastService.ShowError($"Failed to delete user: {ex.Message}");
+        }
+    }
+
+    private async Task HandleProfilePictureUpload(InputFileChangeEventArgs e)
+    {
+        if (editingUser == null)
+            return;
+
+        try
+        {
+            var file = e.File;
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            await UserManagementService.UploadProfilePictureAsync(
+                editingUser.Id, 
+                stream, 
+                file.Name, 
+                file.ContentType);
+
+            //ToastService.ShowSuccess("Profile picture uploaded successfully");
+            await LoadUsers();
+
+            // Update editingUser with new profile picture URL
+            var updatedUser = users?.FirstOrDefault(u => u.Id == editingUser.Id);
+            if (updatedUser != null)
+            {
+                editingUser = updatedUser;
+            }
+        }
+        catch (Exception ex)
+        {
+            //ToastService.ShowError($"Failed to upload profile picture: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteProfilePicture()
+    {
+        if (editingUser == null)
+            return;
+
+        try
+        {
+            await UserManagementService.DeleteProfilePictureAsync(editingUser.Id);
+            //ToastService.ShowSuccess("Profile picture deleted");
+            await LoadUsers();
+
+            var updatedUser = users?.FirstOrDefault(u => u.Id == editingUser.Id);
+            if (updatedUser != null)
+            {
+                editingUser = updatedUser;
+            }
+        }
+        catch (Exception ex)
+        {
+            //ToastService.ShowError($"Failed to delete profile picture: {ex.Message}");
+        }
+    }
+
+    private void ToggleRole(string role, bool isChecked)
+    {
+        if (isChecked && !userForm.Roles.Contains(role))
+            userForm.Roles.Add(role);
+        else if (!isChecked && userForm.Roles.Contains(role))
+            userForm.Roles.Remove(role);
+    }
+
+    private class UserFormModel
+    {
+        public string? Email
+        {
+            get; set;
+        }
+        public string? Password
+        {
+            get; set;
+        }
+        public string? PhoneNumber
+        {
+            get; set;
+        }
+        public List<string> Roles { get; set; } = new();
+    }
+
+    private class PasswordFormModel
+    {
+        public string? CurrentPassword
+        {
+            get; set;
+        }
+        public string? NewPassword
+        {
+            get; set;
+        }
+        public string? ConfirmPassword
+        {
+            get; set;
+        }
+    }
+}

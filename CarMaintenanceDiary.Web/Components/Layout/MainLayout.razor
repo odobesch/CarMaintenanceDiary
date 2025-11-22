@@ -6,80 +6,74 @@
 @inherits LayoutComponentBase
 
 <CascadingAuthenticationState>
-	<Toasts class="p-3" AutoHide="true" Delay="6000" Placement="ToastsPlacement.TopRight" />
-	<BlazorBootstrapLayout StickyHeader="true">
-		<HeaderSection>
-			<ThemeSwitcher Class="ps-3 ps-lg-2" Position="DropdownMenuPosition.End" />
-			<NavLink href="/settings" class="btn btn-outline-secondary btn-sm" aria-label="Settings">
-				<Icon Name="IconName.GearFill" class="me-1" />
-				<span class="d-none d-sm-inline">Settings</span>
-			</NavLink>
+    <Toasts class="p-3" AutoHide="true" Delay="6000" Placement="ToastsPlacement.TopRight" />
+    <BlazorBootstrapLayout StickyHeader="true">
+        <HeaderSection>
+            <div class="ms-auto d-flex align-items-center">
+                <ThemeSwitcher Class="me-2" Position="DropdownMenuPosition.End" />
+                <LoginDisplay @rendermode="InteractiveServer" />
+            </div>
+        </HeaderSection>
 
-			<!-- login / logout display on the right -->
-			<div class="ms-auto d-flex align-items-center">
-				<LoginDisplay @rendermode="InteractiveServer" />
-			</div>
-		</HeaderSection>
+        <SidebarSection>
+            <AuthorizeView>
+                <Authorized>
+                    <Sidebar2 Href="/"
+                              ImageSrc=""
+                              Title="Vehicle Care Manager"
+                              BadgeText="1.0.0"
+                              Class="sidebar-image-only"
+                              DataProvider="Sidebar2DataProvider"
+                              WidthUnit="Unit.Px" />
+                </Authorized>
+                <NotAuthorized>
+                    <!-- optional placeholder when not logged in -->
+                    <div class="p-3 text-muted">Please <a href="/auth/login">log in</a> to see navigation.</div>
+                </NotAuthorized>
+            </AuthorizeView>
+        </SidebarSection>
 
-		<SidebarSection>
-			<AuthorizeView>
-				<Authorized>
-					<Sidebar2 Href="/"
-							  ImageSrc="https://demos.blazorbootstrap.com/images/logo/logo-white.svg"
-							  Title="Car Maintenance"
-							  BadgeText="3.2.0"
-							  DataProvider="Sidebar2DataProvider"
-							  WidthUnit="Unit.Px" />
-				</Authorized>
-				<NotAuthorized>
-					<!-- optional placeholder when not logged in -->
-					<div class="p-3 text-muted">Please <a href="/auth/login">log in</a> to see navigation.</div>
-				</NotAuthorized>
-			</AuthorizeView>
-		</SidebarSection>
+        <ContentSection>
+            <AutoRequireAuth />
+            @Body
+        </ContentSection>
 
-		<ContentSection>
-			<AutoRequireAuth />
-			@Body
-		</ContentSection>
+        <FooterSection>
+        </FooterSection>
 
-		<FooterSection>
-		</FooterSection>
+    </BlazorBootstrapLayout>
 
-	</BlazorBootstrapLayout>
-
-	<Component />		
+    <Component />
 </CascadingAuthenticationState>
 
 @code {
-	private IEnumerable<NavItem> navItems = default!;
+    private IEnumerable<NavItem> navItems = default!;
 
-	private Offcanvas offcanvas = default!;
-	private async Task OnShowOffcanvasClick() => await offcanvas.ShowAsync();
+    private Offcanvas offcanvas = default!;
+    private async Task OnShowOffcanvasClick() => await offcanvas.ShowAsync();
 
-	private async Task<Sidebar2DataProviderResult> Sidebar2DataProvider(Sidebar2DataProviderRequest request)
-	{
-		navItems = GetNavItems();
-		return await Task.FromResult(request.ApplyTo(navItems));
-	}
+    private async Task<Sidebar2DataProviderResult> Sidebar2DataProvider(Sidebar2DataProviderRequest request)
+    {
+        navItems = GetNavItems();
+        return await Task.FromResult(request.ApplyTo(navItems));
+    }
 
-	private IEnumerable<NavItem> GetNavItems()
-	{
-		return new List<NavItem>
- {
- new NavItem { Id = "1", Href = "/", IconName = IconName.HouseDoorFill, Text = "Home", Match = NavLinkMatch.All },
- new NavItem { Id = "2", Href = "/counter", IconName = IconName.PlusSquareFill, Text = "Counter" },
- new NavItem { Id = "3", Href = "/weather", IconName = IconName.Table, Text = "Weather" },
- new NavItem { Id = "4", Href = "/vehicles", IconName = IconName.CarFrontFill, Text = "Vehicles" },
- new NavItem { Id = "5", Href = "/fuel-management", IconName = IconName.FuelPump, Text = "Fuel Management" },
- new NavItem { Id = "6", Href = "/fuel-map", IconName = IconName.Map, Text = "Fuel Stations map" },
- new NavItem { Id = "7", Href = "/maintenance", IconName = IconName.Tools, Text = "Maintenance Management" },
- };
-	}
+    private IEnumerable<NavItem> GetNavItems()
+    {
+        return new List<NavItem>
+        {
+            new NavItem { Id = "1", Href = "/", IconName = IconName.HouseDoorFill, Text = "Home", Match = NavLinkMatch.All }, 
+            new NavItem { Id = "2", Href = "/vehicles", IconName = IconName.CarFrontFill, Text = "Vehicles" },
+            new NavItem { Id = "3", Href = "/fuel-management", IconName = IconName.FuelPump, Text = "Fuel Management" },
+            new NavItem { Id = "4", Href = "/fuel-map", IconName = IconName.Map, Text = "Fuel Stations map" },
+            new NavItem { Id = "5", Href = "/maintenance", IconName = IconName.Tools, Text = "Maintenance Management" },
+            new NavItem { Id = "6", Href = "/settings", IconName = IconName.GearFill, Text = "Settings" }
+        };
+    }
 }
 
 <div id="blazor-error-ui">
-	An unhandled error has occurred.
-	<a href="" class="reload">Reload</a>
-	<a class="dismiss">🗙</a>
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
 </div>

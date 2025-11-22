@@ -1,23 +1,25 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Blazor.Bootstrap" Version="3.3.1" />
+    <PackageReference Include="Blazor.Bootstrap" Version="3.4.0" />
     <PackageReference Include="Blazored.Toast" Version="4.2.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.4" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="9.0.4" />
-    <PackageReference Include="Radzen.Blazor" Version="6.6.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Radzen.Blazor" Version="8.3.1" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.4" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.4" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />        
   </ItemGroup>
 
   <ItemGroup>

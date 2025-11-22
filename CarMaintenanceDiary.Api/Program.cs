@@ -23,6 +23,7 @@ builder.Services.AddHttpClient();
 
 builder.Services.AddScoped<IVehicleService, VehicleApiService>();
 builder.Services.AddScoped<IFuelService, FuelApiService>();
+builder.Services.AddScoped<IUserManagementService, UserManagementApiService>();
 
 builder.Services.AddCors(options =>
 {
@@ -87,12 +88,12 @@ app.UseAuthorization();
 app.MapControllers();
 
 // seed identity
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-    await CarMaintenanceDiary.Infrastructure.Data.IdentitySeed.EnsureSeedAsync(userManager, roleManager);
-}
+//using (var scope = app.Services.CreateScope())
+//{
+//    var services = scope.ServiceProvider;
+//    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+//    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+//    await CarMaintenanceDiary.Infrastructure.Data.IdentitySeed.EnsureSeedAsync(userManager, roleManager);
+//}
 
 app.Run();
