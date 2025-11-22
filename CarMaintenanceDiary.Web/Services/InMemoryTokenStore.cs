@@ -37,7 +37,7 @@ namespace CarMaintenanceDiary.Web.Services
             }
 
             TokenChanged?.Invoke(_token);
-            return Task.CompletedTask;
+            // Remove: return Task.CompletedTask;
         }
 
         public async Task SetTokenAsync(string? accessToken)
@@ -54,7 +54,7 @@ namespace CarMaintenanceDiary.Web.Services
             }
 
             TokenChanged?.Invoke(_token);
-            return Task.CompletedTask;
+            // Remove: return Task.CompletedTask;
         }
     }
 }
