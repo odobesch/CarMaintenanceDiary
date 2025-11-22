@@ -34,6 +34,11 @@ namespace CarMaintenanceDiary.Api.Controllers
             foreach (var user in users)
             {
                 var roles = await _userManager.GetRolesAsync(user);
+
+                string? picUrl = user.ProfilePicture != null
+                   ? $"{Request.Scheme}://{Request.Host}/api/usermanagement/{user.Id}/profile-picture"
+                   : null;
+
                 userDtos.Add(new UserDto(
                     user.Id,
                     user.Email ?? string.Empty,
@@ -43,7 +48,7 @@ namespace CarMaintenanceDiary.Api.Controllers
                     user.LockoutEnabled,
                     user.LockoutEnd,
                     roles,
-                    user.ProfilePicture != null ? $"/api/usermanagement/{user.Id}/profile-picture" : null
+                    picUrl
                 ));
             }
 
@@ -58,6 +63,11 @@ namespace CarMaintenanceDiary.Api.Controllers
                 return NotFound();
 
             var roles = await _userManager.GetRolesAsync(user);
+
+            string? picUrl = user.ProfilePicture != null
+                ? $"{Request.Scheme}://{Request.Host}/api/usermanagement/{user.Id}/profile-picture"
+                : null;
+
             return Ok(new UserDto(
                 user.Id,
                 user.Email ?? string.Empty,
@@ -67,7 +77,7 @@ namespace CarMaintenanceDiary.Api.Controllers
                 user.LockoutEnabled,
                 user.LockoutEnd,
                 roles,
-                user.ProfilePicture != null ? $"/api/usermanagement/{user.Id}/profile-picture" : null
+                picUrl
             ));
         }
 
