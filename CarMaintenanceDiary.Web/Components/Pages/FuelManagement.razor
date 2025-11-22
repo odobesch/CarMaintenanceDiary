@@ -9,6 +9,35 @@
 @inject ToastService ToastService
 @inject ILogger<FuelManagement> Logger
 
+<style>
+    /* Thumbnails */
+    .photo-thumbnail img {        
+        object-fit: cover;
+        border: 1px solid #ccc;
+        cursor: pointer;
+        display: block;
+    }
+
+    .photo-thumbnail .photo-actions {
+        margin-top: 6px;
+    }
+
+    /* Make detail modal wider and ensure image fits within viewport */
+    .photo-detail-modal .modal-dialog {
+        max-width: 90vw;
+    }
+
+    .photo-detail-modal .modal-body {
+        text-align: center;
+    }
+
+        .photo-detail-modal .modal-body img {
+            max-width: 90vw;
+            max-height: 85vh;
+            object-fit: contain;
+        }
+</style>
+
 <h3>Fuel Management</h3>
 
 @if (isLoading)
@@ -88,6 +117,7 @@ else
                         @(context.FullTank ? "Yes" : "No")
                     </GridColumn>
                     <GridColumn TItem="FuelRecordDto" Field="Edit/Delete" HeaderText="Edit/Delete">
+                        <button class="btn btn-sm btn-secondary me-1" @onclick="() => OpenPhotos(context)">Images</button>
                         <button class="btn btn-sm btn-primary me-1" @onclick="() => EditFuelRecord(context)">Edit</button>
                         <button class="btn btn-sm btn-danger" @onclick="() => DeleteFuelRecord(context)">Delete</button>
                     </GridColumn>
@@ -227,9 +257,134 @@ else
     </FooterTemplate>
 </Modal>
 
+<Modal @ref="photoModal" Title="Images" Class="photo-modal" Keyboard="false" Backdrop="ModalBackdrop.Static">
+    <BodyTemplate>
+        <div class="mb-2">
+            <label>Upload photos</label>
+            <InputFile OnChange="UploadPhotoFiles" multiple />
+        </div>
+
+        <div class="d-flex flex-wrap">
+            @if (photoIdsForRecord?.Any() == true)
+            {
+                foreach (var pid in photoIdsForRecord)
+                {
+                    <div class="m-2 text-center photo-thumbnail">
+                        <div class="m-2 text-center photo-thumbnail">
+                            <img src="@PhotoUrl(pid, 300, 150)"
+                                 srcset="@PhotoUrl(pid, 300, 150) 1x,
+                                        @PhotoUrl(pid, 300, 150, dpr: 2) 2x"
+                                 width="300" height="150"
+                                 loading="lazy" decoding="async"
+                                 @onclick="() => ShowPhotoDetail(pid)" />
+                            <div class="mt-1 photo-actions">
+                                <button class="btn btn-sm btn-danger" @onclick="() => DeletePhoto(pid)">Delete</button>
+                            </div>
+                        </div>                       
+                    </div>
+                }
+            }
+            else
+            {
+                <div>No photos for this record.</div>
+            }
+        </div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <Button Color="ButtonColor.Secondary" @onclick="ClosePhotoModal">Close</Button>
+    </FooterTemplate>
+</Modal>
+
+<Modal @ref="photoDetailModal" Title="Image Detail" Class="photo-detail-modal" Keyboard="true" Backdrop="ModalBackdrop.True">
+    <BodyTemplate>
+        @if (!string.IsNullOrEmpty(selectedPhotoUrl))
+        {
+            <div class="text-center">
+                <img src="@selectedPhotoUrl" />
+            </div>
+        }
+        else
+        {
+            <div>Loading...</div>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        @if (!string.IsNullOrEmpty(selectedPhotoUrl))
+        {
+            <a class="btn btn-link" href="@selectedPhotoUrl" target="_blank" rel="noopener">Open in new tab</a>
+            <button class="btn btn-sm btn-secondary ms-2" @onclick="DownloadPhoto">Download</button>
+        }
+        <Button Color="ButtonColor.Secondary" @onclick="ClosePhotoDetailModal">Close</Button>
+    </FooterTemplate>
+</Modal>
+
 <ConfirmDialog @ref="confirmDialog" />
 
-@code {       
+@implements IAsyncDisposable
+
+<!--
+  Updated ESC handler:
+  - Runs in JS, closes only the topmost visible DOM modal (.modal.show).
+  - Notifies the component which modal class was closed so C# can update state (selectedPhotoId / selectedPhotoUrl).
+  This avoids calling component HideAsync from C#, which previously caused both modals to close.
+-->
+<script>
+    window.carMaintenance = window.carMaintenance || {};
+    window.carMaintenance.escHandler = window.carMaintenance.escHandler || {
+        _listener: null,
+        register: function (dotNetRef) {
+            if (this._listener) return;
+            this._listener = function (e) {
+                if (e.key !== "Escape") return;
+
+                // find all visible modals (Bootstrap root .modal.show)
+                const visible = Array.from(document.querySelectorAll('.modal.show'));
+                if (visible.length === 0) return;
+
+                const top = visible[visible.length - 1];
+
+                // try bootstrap API first
+                try {
+                    if (window.bootstrap && window.bootstrap.Modal) {
+                        const inst = window.bootstrap.Modal.getInstance(top) || new window.bootstrap.Modal(top);
+                        inst.hide();
+                    } else {
+                        // fallback: manually hide DOM modal (best-effort)
+                        top.classList.remove('show');
+                        top.setAttribute('aria-hidden', 'true');
+                        top.style.display = 'none';
+                        const backdrops = document.querySelectorAll('.modal-backdrop');
+                        if (backdrops.length) {
+                            backdrops[backdrops.length - 1].remove();
+                        }
+                        // remove modal-open if no more modals visible
+                        if (document.querySelectorAll('.modal.show').length === 0) {
+                            document.body.classList.remove('modal-open');
+                        }
+                    }
+                } catch (err) {
+                    // ignore DOM/Bootstrap errors
+                }
+
+                const closedIsDetail = top.classList.contains('photo-detail-modal');
+                const closedIsPhotos = top.classList.contains('photo-modal');
+                const modalName = closedIsDetail ? 'photoDetailModal' : (closedIsPhotos ? 'photoModal' : 'unknown');
+
+                // notify the component so it can update its state
+                dotNetRef.invokeMethodAsync('NotifyModalClosed', modalName).catch(() => { /* ignore */ });
+            };
+            window.addEventListener('keydown', this._listener);
+        },
+        unregister: function () {
+            if (!this._listener) return;
+            window.removeEventListener('keydown', this._listener);
+            this._listener = null;
+        }
+    };
+</script>
+
+@code {
+    private const long MaxUploadBytes = 10_000_000;
     private List<VehicleDto> vehicles = new();
     private VehicleDto? selectedVehicle;
     private FuelRecordDto newFuelRecord = new();
@@ -252,9 +407,19 @@ else
 
     private bool isSaving;
 
+    private Modal? photoModal;
+    private int photoRecordId;
+    private List<int> photoIdsForRecord = new();
+
+    private Modal? photoDetailModal;
+    private int? selectedPhotoId;
+    private string? selectedPhotoUrl;
+
+    private DotNetObjectReference<FuelManagement>? dotNetRef;
+
     protected override async Task OnInitializedAsync()
     {
-        isLoading = true;        
+        isLoading = true;
 
         try
         {
@@ -278,9 +443,16 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (selectedVehicle is not null && lineChart is not null)
-        {            
+        {
             await lineChart.InitializeAsync(chartData, lineChartOptions);
-        }  
+        }
+
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("carMaintenance.escHandler.register", dotNetRef);
+        }
+
         if (firstRender == false)
         {
             await JS.InvokeVoidAsync("initFlatpickr", "#fuelDate");
@@ -318,7 +490,7 @@ else
         try
         {
             var fuelRecords = (await FuelService.GetFuelRecordsAsync(vehicleId))
-                .OrderBy(fr => fr.Odometer)
+                .OrderByDescending(fr => fr.Odometer)
                 .ToList();
 
             if (selectedVehicle is not null && selectedVehicle.Id == vehicleId)
@@ -369,64 +541,64 @@ else
         }
 
         chartData = new ChartData
-            {
-                Labels = labels,
-                Datasets = new List<IChartDataset>
         {
-            new LineChartDataset
+            Labels = labels,
+            Datasets = new List<IChartDataset>
             {
-                Label = "L/100km",
-                Data = consumptionData,
-                BackgroundColor = colors[0],
-                BorderColor = colors[0],
-                BorderWidth = 2,
-                HoverBorderWidth = 3,
-                PointRadius = new List<double> { 3 },
-                PointHoverRadius = new List<double> { 6 },
-                Fill = false
-            },
-            new LineChartDataset
-            {
-                Label = "Cost/100km (CZK)",
-                Data = costPer100kmData,
-                BackgroundColor = colors[1],
-                BorderColor = colors[1],
-                BorderWidth = 2,
-                HoverBorderWidth = 3,
-                PointRadius = new List<double> { 3 },
-                PointHoverRadius = new List<double> { 6 },
-                Fill = false
+                new LineChartDataset
+                {
+                    Label = "L/100km",
+                    Data = consumptionData,
+                    BackgroundColor = colors[0],
+                    BorderColor = colors[0],
+                    BorderWidth = 2,
+                    HoverBorderWidth = 3,
+                    PointRadius = new List<double> { 3 },
+                    PointHoverRadius = new List<double> { 6 },
+                    Fill = false
+                },
+                new LineChartDataset
+                {
+                    Label = "Cost/100km (CZK)",
+                    Data = costPer100kmData,
+                    BackgroundColor = colors[1],
+                    BorderColor = colors[1],
+                    BorderWidth = 2,
+                    HoverBorderWidth = 3,
+                    PointRadius = new List<double> { 3 },
+                    PointHoverRadius = new List<double> { 6 },
+                    Fill = false
+                }
             }
-        }
-            };
+        };
 
         lineChartOptions = new LineChartOptions
+        {
+            Responsive = true,
+            Interaction = new Interaction { Mode = InteractionMode.Index },
+            Plugins = new()
             {
-                Responsive = true,
-                Interaction = new Interaction { Mode = InteractionMode.Index },
-                Plugins = new()
+                Title = new()
                 {
-                    Title = new()
-                    {
-                        Display = true,
-                        Text = "Fuel Consumption and Cost per 100 km"
-                    }
+                    Display = true,
+                    Text = "Fuel Consumption and Cost per 100 km"
                 }
-            };
-    }    
+            }
+        };
+    }
 
     private void OpenAddFuelModal()
     {
         isEditMode = false;
         newFuelRecord = new FuelRecordDto
-            {
-                Date = DateTime.Today
-            };
+        {
+            Date = DateTime.Today
+        };
         fuelModal?.ShowAsync();
     }
 
     private void CloseFuelModal()
-    {        
+    {
         fuelModal?.HideAsync();
     }
 
@@ -445,7 +617,7 @@ else
             await FuelService.AddFuelRecordAsync(selectedVehicle.Id, newFuelRecord);
 
             ToastService.Notify(new ToastMessage(ToastType.Success, "Fuel record added successfully."));
-            
+
             newFuelRecord = new FuelRecordDto();
             fuelModal?.HideAsync();
 
@@ -473,16 +645,16 @@ else
         editingRecord = record;
 
         newFuelRecord = new FuelRecordDto
-            {
-                Id = record.Id,
-                Date = record.Date,
-                Odometer = record.Odometer,
-                Liters = record.Liters,
-                PricePerLiter = record.PricePerLiter,
-                FuelStation = record.FuelStation,
-                FullTank = record.FullTank
-            };
-        
+        {
+            Id = record.Id,
+            Date = record.Date,
+            Odometer = record.Odometer,
+            Liters = record.Liters,
+            PricePerLiter = record.PricePerLiter,
+            FuelStation = record.FuelStation,
+            FullTank = record.FullTank
+        };
+
         fuelModal?.ShowAsync();
     }
 
@@ -518,14 +690,14 @@ else
         finally
         {
             isSaving = false;
-        }        
+        }
     }
 
     private async Task DeleteFuelRecord(FuelRecordDto record)
     {
         if (selectedVehicle is null)
             return;
-            
+
         var confirmed = await confirmDialog.ShowAsync($"Delete fuel record", $"Are you sure you want to delete the fuel record from {record.Date}?");
 
         if (confirmed)
@@ -540,5 +712,148 @@ else
         {
             ToastService.Notify(new ToastMessage(ToastType.Secondary, "Delete cancelled."));
         }
-    }    
+    }
+
+    private string PhotoUrl(
+        int id,
+        int? w = null,
+        int? h = null,
+        string mode = "crop",
+        int dpr = 1,
+        string? format = null,
+        int? q = null)
+    {
+        return (w.HasValue && h.HasValue)
+            ? FuelService.GetPhotoUrl(id, w.Value, h.Value, mode, dpr, format, q)
+            : FuelService.GetPhotoUrl(id);
+    }
+
+    private async Task OpenPhotos(FuelRecordDto record)
+    {
+        photoRecordId = record.Id;
+        var dto = await FuelService.GetFuelRecordByIdAsync(photoRecordId);
+        photoIdsForRecord = dto?.PhotoIds ?? new List<int>();
+
+        await photoModal?.ShowAsync();
+    }
+
+    private async Task ClosePhotoModal()
+    {
+        await photoModal?.HideAsync();
+        photoIdsForRecord.Clear();
+    }
+
+    private string PhotoUrl(int id) => FuelService.GetPhotoUrl(id);
+
+    private async Task ShowPhotoDetail(int photoId)
+    {
+        selectedPhotoId = photoId;
+        selectedPhotoUrl = PhotoUrl(photoId);
+
+        await photoDetailModal?.ShowAsync();
+    }
+
+    private async Task ClosePhotoDetailModal()
+    {
+        selectedPhotoId = null;
+        selectedPhotoUrl = null;
+        await photoDetailModal?.HideAsync();
+    }
+
+    private async Task DownloadPhoto()
+    {
+        if (string.IsNullOrEmpty(selectedPhotoUrl))
+            return;
+
+        await JS.InvokeVoidAsync("open", selectedPhotoUrl, "_blank");
+    }
+
+    private async Task UploadPhotoFiles(InputFileChangeEventArgs e)
+    {
+        if (photoRecordId == 0)
+        {
+            ToastService.Notify(new ToastMessage(ToastType.Warning, "No record selected for upload."));
+            return;
+        }
+
+        foreach (var file in e.GetMultipleFiles())
+        {
+            await using var stream = file.OpenReadStream(MaxUploadBytes);
+            try
+            {
+                var uploadedId = await FuelService.UploadPhotoAsync(photoRecordId, stream, file.Name, file.ContentType);
+                var dto = await FuelService.GetFuelRecordByIdAsync(photoRecordId);
+                photoIdsForRecord = dto?.PhotoIds ?? new List<int>();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Photo upload failed.");
+                ToastService.Notify(new ToastMessage(ToastType.Danger, "Photo upload failed."));
+            }
+        }
+
+        if (selectedVehicle is not null)
+            await LoadFuelRecords(selectedVehicle.Id);
+    }
+
+    private async Task DeletePhoto(int photoId)
+    {
+        try
+        {
+            await FuelService.DeletePhotoAsync(photoId);
+            photoIdsForRecord.Remove(photoId);
+
+            if (selectedPhotoId == photoId)
+            {
+                await ClosePhotoDetailModal();
+            }
+
+            if (photoRecordId != 0)
+            {
+                var dto = await FuelService.GetFuelRecordByIdAsync(photoRecordId);
+                photoIdsForRecord = dto?.PhotoIds ?? new List<int>();
+            }
+
+            if (selectedVehicle is not null)
+                await LoadFuelRecords(selectedVehicle.Id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to delete photo.");
+            ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to delete photo."));
+        }
+    }
+
+    // JS -> .NET callback: update component state after JS hides a specific modal element.
+    [JSInvokable]
+    public Task NotifyModalClosed(string modalName)
+    {
+        // only the detail modal needs component-side cleanup (selectedPhotoId/Url)
+        if (modalName == "photoDetailModal")
+        {
+            selectedPhotoId = null;
+            selectedPhotoUrl = null;
+            StateHasChanged();
+        }
+        else if (modalName == "photoModal")
+        {
+            photoIdsForRecord.Clear();
+            StateHasChanged();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("carMaintenance.escHandler.unregister");
+        }
+        catch
+        {
+            // ignore if JS not available
+        }
+        dotNetRef?.Dispose();
+    }
 }

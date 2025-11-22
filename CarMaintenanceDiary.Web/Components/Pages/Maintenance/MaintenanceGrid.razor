@@ -1,0 +1,70 @@
+﻿@using CarMaintenanceDiary.Shared.DTOs
+
+<Grid TItem="MaintenanceRecordDto"
+      Data="@Items"
+      Class="table table-hover table-bordered"
+      AllowFiltering="true"
+      AllowPaging="true" PageSize="10"
+      PageSizeSelectorVisible="true"
+      PageSizeSelectorItems="@(new int[] { 5,10,20 })"
+      AllowSorting="true"
+      AllowSelection="false"
+      SelectionMode="GridSelectionMode.Single"
+      Responsive="true">
+    <GridColumns>
+        <GridColumn TItem="MaintenanceRecordDto" Field="Date" HeaderText="Date"
+                    PropertyName="Date" SortKeySelector="m => m.Date"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+            @context.Date.ToShortDateString()
+        </GridColumn>
+
+        <GridColumn TItem="MaintenanceRecordDto" Field="MaintenanceType" HeaderText="Type"
+                    PropertyName="MaintenanceType" SortKeySelector="m => m.MaintenanceType"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+            @context.MaintenanceType
+        </GridColumn>
+
+        <GridColumn TItem="MaintenanceRecordDto" Field="Description" HeaderText="Description"
+                    PropertyName="Description" SortKeySelector="m => m.Description"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Start">
+            @context.Description
+        </GridColumn>
+
+        <GridColumn TItem="MaintenanceRecordDto" Field="Workshop" HeaderText="Workshop"
+                    PropertyName="Workshop" SortKeySelector="m => m.Workshop"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+            @context.Workshop
+        </GridColumn>
+
+        <GridColumn TItem="MaintenanceRecordDto" Field="Cost" HeaderText="Cost"
+                    PropertyName="Cost" SortKeySelector="m => m.Cost"
+                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+            @context.Cost.ToString("C", new System.Globalization.CultureInfo("cs-CZ"))
+        </GridColumn>
+
+        <GridColumn TItem="MaintenanceRecordDto" Field="Actions" HeaderText="Actions">
+            <button class="btn btn-sm btn-secondary me-1" @onclick="() => OnOpenDocuments.InvokeAsync(context)">Documents</button>
+            <button class="btn btn-sm btn-primary me-1" @onclick="() => OnEdit.InvokeAsync(context)">Edit</button>
+            <button class="btn btn-sm btn-danger" @onclick="() => OnDelete.InvokeAsync(context)">Delete</button>
+        </GridColumn>
+    </GridColumns>
+</Grid>
+
+@code {
+    [Parameter] public List<MaintenanceRecordDto> Items { get; set; } = new();
+    [Parameter]
+    public EventCallback<MaintenanceRecordDto> OnOpenDocuments
+    {
+        get; set;
+    }
+    [Parameter]
+    public EventCallback<MaintenanceRecordDto> OnEdit
+    {
+        get; set;
+    }
+    [Parameter]
+    public EventCallback<MaintenanceRecordDto> OnDelete
+    {
+        get; set;
+    }
+}

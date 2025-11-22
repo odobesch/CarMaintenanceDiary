@@ -1,0 +1,39 @@
+﻿@using CarMaintenanceDiary.Shared.DTOs
+@using Microsoft.AspNetCore.Components.Forms
+
+<div class="mb-2">
+    <label>Upload documents (invoices, receipts)</label>
+    <InputFile OnChange="OnUpload" multiple />
+</div>
+
+@if (Documents?.Any() == true)
+{
+    <div class="documents-grid">
+        @foreach (var doc in Documents)
+        {
+            <DocumentCard Doc="doc"
+                          GetPreviewUrl="GetPreviewUrl"
+                          GetIconClass="GetIconClass"
+                          OnOpenNewTab="OnOpenNewTab"
+                          OnShowDetail="OnShowDetail"
+                          OnDownload="OnDownload"
+                          OnDelete="OnDelete" />
+        }
+    </div>
+}
+else
+{
+    <div>No documents for this record.</div>
+}
+
+@code {
+    [Parameter] public List<MaintenanceDocumentDto> Documents { get; set; } = new();
+    [Parameter] public EventCallback<InputFileChangeEventArgs> OnUpload { get; set; }
+    [Parameter] public EventCallback<int> OnOpenNewTab { get; set; }
+    [Parameter] public EventCallback<int> OnShowDetail { get; set; }
+    [Parameter] public EventCallback<int> OnDownload { get; set; }
+    [Parameter] public EventCallback<int> OnDelete { get; set; }
+
+    [Parameter] public Func<int, int, int, string>? GetPreviewUrl { get; set; } // (id,w,h)
+    [Parameter] public Func<string?, string>? GetIconClass { get; set; }
+}

@@ -1,0 +1,65 @@
+﻿@using CarMaintenanceDiary.Shared.DTOs
+
+<div class="doc-card">
+    @if (IsImage(Doc.ContentType))
+    {
+        <img src="@GetPreviewUrl!(Doc.Id, 300, 140)"
+             class="doc-media"
+             loading="lazy" decoding="async"
+             style="cursor: pointer;"
+             @onclick="() => OnOpenNewTab.InvokeAsync(Doc.Id)" />
+    }
+    else
+    {
+        <div class="doc-icon-wrapper" style="cursor: pointer;" @onclick="() => OnOpenNewTab.InvokeAsync(Doc.Id)">
+            <i class="@(GetIconClass?.Invoke(Doc.ContentType) ?? "bi bi-file-earmark") display-4" aria-hidden="true"></i>
+        </div>
+    }
+
+    <div class="doc-filename" title="@Doc.FileName" style="cursor: pointer;" @onclick="() => OnShowDetail.InvokeAsync(Doc.Id)">
+        @Doc.FileName
+    </div>
+
+    <div class="doc-actions">
+        <button class="btn btn-sm btn-secondary" @onclick:stopPropagation="true" @onclick="() => OnDownload.InvokeAsync(Doc.Id)">Download</button>
+        <button class="btn btn-sm btn-danger" @onclick:stopPropagation="true" @onclick="() => OnDelete.InvokeAsync(Doc.Id)">Delete</button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public MaintenanceDocumentDto Doc { get; set; } = default!;
+    [Parameter]
+    public EventCallback<int> OnOpenNewTab
+    {
+        get; set;
+    }
+    [Parameter]
+    public EventCallback<int> OnShowDetail
+    {
+        get; set;
+    }
+    [Parameter]
+    public EventCallback<int> OnDownload
+    {
+        get; set;
+    }
+    [Parameter]
+    public EventCallback<int> OnDelete
+    {
+        get; set;
+    }
+
+    [Parameter]
+    public Func<int, int, int, string>? GetPreviewUrl
+    {
+        get; set;
+    }
+    [Parameter]
+    public Func<string?, string>? GetIconClass
+    {
+        get; set;
+    }
+
+    private static bool IsImage(string? contentType)
+        => !string.IsNullOrEmpty(contentType) && contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+}

@@ -1,0 +1,57 @@
+﻿@page "/auth/logout"
+@using CarMaintenanceDiary.Web.Services
+@rendermode InteractiveServer
+
+@inject IHttpClientFactory HttpFactory
+@inject ITokenStore TokenStore
+@inject JwtAuthenticationStateProvider AuthProvider
+@inject NavigationManager Navigation
+@inject ILogger<Logout> Logger
+@inject IJSRuntime JS
+
+<PageTitle>Log Out</PageTitle>
+
+<div class="container py-4">
+    <h3>Signing out…</h3>
+    <p>Please wait — you will be redirected shortly.</p>
+</div>
+
+@code {
+    private bool _navigated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var client = HttpFactory.CreateClient("Api");
+            
+            using var resp = await client.PostAsync("api/auth/logout", null);
+            Logger.LogInformation("Logout POST returned {Status} ({Code})", resp.StatusCode, (int)resp.StatusCode);
+
+            if (!resp.IsSuccessStatusCode)
+                Logger.LogWarning("Server logout returned {Status}", resp.StatusCode);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Logout request failed");
+        }
+        finally
+        {
+            await TokenStore.SetTokensAsync(null, null);
+            await AuthProvider.MarkUserAsLoggedOutAsync();
+            
+            await Task.Yield();
+            NavigateHome();
+        }
+    }    
+
+    private void NavigateHome()
+    {
+        if (_navigated)
+            return;
+        _navigated = true;
+        // replace: true avoids a useless entry in back stack
+        // forceLoad: true ensures a clean, unauthenticated shell after logout
+        Navigation.NavigateTo("/", replace: true, forceLoad: true);
+    }
+}

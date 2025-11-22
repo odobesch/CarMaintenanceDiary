@@ -13,5 +13,6 @@
         public decimal PricePerLiter { get; set; }
         public string FuelStation { get; set; } = string.Empty;
         public bool FullTank { get; set; }
+        public ICollection<FuelPhoto> Photos { get; set; } = new List<FuelPhoto>();
     }
 }
