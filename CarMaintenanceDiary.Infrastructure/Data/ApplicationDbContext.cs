@@ -1,5 +1,6 @@
 ﻿using CarMaintenanceDiary.Core.Models;
 using CarMaintenanceDiary.Infrastructure.Identity;
+using CarMaintenanceDiary.Infrastructure.Security;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,8 +8,11 @@ namespace CarMaintenanceDiary.Infrastructure.Data
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+        private readonly IUserContext? _userContext;
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, IUserContext? userContext = null) 
+            : base(options)
         {
+            _userContext = userContext;
         }
         public DbSet<Vehicle> Vehicles { get; set; } = null!;
         public DbSet<FuelRecord> FuelEntries { get; set; } = null!;
@@ -19,7 +23,16 @@ namespace CarMaintenanceDiary.Infrastructure.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-            // Add any additional configuration here
+
+            modelBuilder.Entity<Vehicle>()
+               .HasOne<ApplicationUser>()
+               .WithMany()
+               .HasForeignKey(v => v.UserId)
+               .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Vehicle>()
+             .HasIndex(v => v.UserId);
+
             modelBuilder.Entity<MaintenanceDocument>()
                 .HasOne(p => p.MaintenanceRecord)
                 .WithMany(r => r.Documents)
@@ -46,6 +59,11 @@ namespace CarMaintenanceDiary.Infrastructure.Data
             modelBuilder.Entity<VehiclePhoto>()
                 .Property(p => p.Data)
                 .HasColumnType("varbinary(max)");
+
+            //modelBuilder.Entity<Vehicle>().HasQueryFilter(v =>
+            //_userContext == null ||
+            //_userContext.IsInRole("Admin") ||
+            //v.UserId == _userContext.GetCurrentUserId());
         }
     }
 }

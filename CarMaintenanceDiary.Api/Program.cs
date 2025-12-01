@@ -1,12 +1,18 @@
-using CarMaintenanceDiary.Application.Interfaces;
+﻿using CarMaintenanceDiary.Application.Interfaces;
 using CarMaintenanceDiary.Application.Services;
 using CarMaintenanceDiary.Infrastructure.Data;
+using CarMaintenanceDiary.Infrastructure.Email;
 using CarMaintenanceDiary.Infrastructure.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
+using CarMaintenanceDiary.Infrastructure.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Text;
+using static CarMaintenanceDiary.Infrastructure.Email.SmtpEmailSender;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,6 +49,33 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
+
+builder.Services.Configure<IdentityOptions>(options =>
+{
+    options.SignIn.RequireConfirmedEmail = true;
+});
+
+var mailjetSection = builder.Configuration.GetSection("Mailjet");
+var mailjetApiKey = mailjetSection["ApiKey"];
+var mailjetApiSecret = mailjetSection["ApiSecret"];
+
+var mailtrapApiToken = builder.Configuration.GetValue<string>("Mailtrap:ApiToken");
+if (!string.IsNullOrWhiteSpace(mailtrapApiToken))
+{
+    builder.Services.Configure<MailtrapOptions>(builder.Configuration.GetSection("Mailtrap"));
+    builder.Services.AddTransient<IEmailSender, MailtrapEmailSender>();
+}
+else if (!string.IsNullOrWhiteSpace(mailjetApiKey) && !string.IsNullOrWhiteSpace(mailjetApiSecret))
+{
+    builder.Services.Configure<MailjetOptions>(mailjetSection);
+    builder.Services.AddSingleton<IValidateOptions<MailjetOptions>, MailjetOptionsValidator>();
+    builder.Services.AddTransient<IEmailSender, MailjetEmailSender>();
+}
+else
+{
+    builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+    builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
+}
 
 // JWT
 var jwt = builder.Configuration.GetSection("Jwt");
@@ -87,14 +120,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// seed identity
-//using (var scope = app.Services.CreateScope())
-//{
-//    var services = scope.ServiceProvider;
-//    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-//    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-//    await CarMaintenanceDiary.Infrastructure.Data.IdentitySeed.EnsureSeedAsync(userManager, roleManager);
-//}
 
 app.Run();

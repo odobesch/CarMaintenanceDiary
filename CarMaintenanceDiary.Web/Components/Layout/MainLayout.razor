@@ -3,6 +3,7 @@
 @using CarMaintenanceDiary.Web.Services
 @using BlazorBootstrap
 @using System.Drawing
+@using System.Security.Claims
 @inherits LayoutComponentBase
 
 <CascadingAuthenticationState>
@@ -47,33 +48,36 @@
 </CascadingAuthenticationState>
 
 @code {
-	private IEnumerable<NavItem> navItems = default!;
+    private IEnumerable<NavItem> navItems = default!;
 
     private Offcanvas offcanvas = default!;
+
     private async Task OnShowOffcanvasClick() => await offcanvas.ShowAsync();
 
     private async Task<Sidebar2DataProviderResult> Sidebar2DataProvider(Sidebar2DataProviderRequest request)
-    {
+    {      
         navItems = GetNavItems();
         return await Task.FromResult(request.ApplyTo(navItems));
     }
 
     private IEnumerable<NavItem> GetNavItems()
     {
-        return new List<NavItem>
+        var list = new List<NavItem>
         {
-            new NavItem { Id = "1", Href = "/", IconName = IconName.HouseDoorFill, Text = "Home", Match = NavLinkMatch.All }, 
+            new NavItem { Id = "1", Href = "/", IconName = IconName.HouseDoorFill, Text = "Home", Match = NavLinkMatch.All },
             new NavItem { Id = "2", Href = "/vehicles", IconName = IconName.CarFrontFill, Text = "Vehicles" },
             new NavItem { Id = "3", Href = "/fuel-management", IconName = IconName.FuelPump, Text = "Fuel Management" },
             new NavItem { Id = "4", Href = "/fuel-map", IconName = IconName.Map, Text = "Fuel Stations map" },
             new NavItem { Id = "5", Href = "/maintenance", IconName = IconName.Tools, Text = "Maintenance Management" },
             new NavItem { Id = "6", Href = "/settings", IconName = IconName.GearFill, Text = "Settings" }
         };
+
+        return list;
     }
 }
 
 <div id="blazor-error-ui">
-	An unhandled error has occurred.
-	<a href="" class="reload">Reload</a>
-	<a class="dismiss">🗙</a>
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
 </div>

@@ -6,6 +6,8 @@ namespace CarMaintenanceDiary.Shared.DTOs
 {
     public record UserDto(
     string Id,
+    string FirstName,
+    string LastName,
     string Email,
     string? UserName,
     string? PhoneNumber,
@@ -17,6 +19,9 @@ namespace CarMaintenanceDiary.Shared.DTOs
 );
 
     public record CreateUserRequest(
+        string FirstName,
+        string LastName,
+        string UserName,
         string Email,
         string Password,
         string? PhoneNumber,
@@ -25,6 +30,8 @@ namespace CarMaintenanceDiary.Shared.DTOs
 
     public record UpdateUserRequest(
         string Id,
+        string FirstName,
+        string LastName,
         string Email,
         string? UserName,
         string? PhoneNumber,

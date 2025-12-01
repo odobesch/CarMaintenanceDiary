@@ -9,6 +9,8 @@ public interface IUserManagementService
     Task CreateUserAsync(CreateUserRequest request);
     Task UpdateUserAsync(string userId, UpdateUserRequest request);
     Task DeleteUserAsync(string userId);
+    Task ActivateUserAsync(string userId);
+    Task DeactivateUserAsync(string userId);
     Task ChangePasswordAsync(string userId, ChangePasswordRequest request);
     Task ResetPasswordAsync(string userId, ResetPasswordRequest request);
     Task<string?> UploadProfilePictureAsync(string userId, Stream fileStream, string fileName, string contentType);

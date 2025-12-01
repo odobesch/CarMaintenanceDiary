@@ -4,7 +4,10 @@
 @using System.Net.Http.Headers
 @using System.Drawing
 @using CarMaintenanceDiary.Application.Interfaces
+@using System.Text.Json
 @inject IUserManagementService UserManagementService
+@inject IHttpClientFactory HttpFactory
+@inject ToastService ToastService
 @rendermode InteractiveServer
 
 <section id="user-management" class="mb-5">
@@ -51,6 +54,14 @@
                         }
                     </GridColumn>
 
+                    <GridColumn TItem="UserDto" HeaderText="First Name" PropertyName="FirstName" SortKeySelector="@(x => x.FirstName)">
+                        @context.FirstName
+                    </GridColumn>
+
+                    <GridColumn TItem="UserDto" HeaderText="Last Name" PropertyName="LastName" SortKeySelector="@(x => x.LastName)">
+                        @context.LastName
+                    </GridColumn>
+
                     <GridColumn TItem="UserDto" HeaderText="Email" PropertyName="Email" SortKeySelector="@(x => x.Email)">
                         @context.Email
                     </GridColumn>
@@ -67,14 +78,14 @@
                         @string.Join(", ", context.Roles)
                     </GridColumn>
 
-                    <GridColumn TItem="UserDto" HeaderText="Status">
-                        @if (context.LockoutEnd.HasValue && context.LockoutEnd > DateTimeOffset.UtcNow)
+                    <GridColumn TItem="UserDto" HeaderText="EmailConfirmed">
+                        @if (context.EmailConfirmed)
                         {
-                            <Badge Color="BadgeColor.Danger">Locked</Badge>
+                            <Badge Color="BadgeColor.Success">Active</Badge>
                         }
                         else
                         {
-                            <Badge Color="BadgeColor.Success">Active</Badge>
+                            <Badge Color="BadgeColor.Danger">Not active</Badge>
                         }
                     </GridColumn>
 
@@ -89,6 +100,20 @@
                             <Button Color="ButtonColor.Danger" @onclick="() => OpenDeleteUserModal(context)">
                                 <i class="bi bi-trash"></i>
                             </Button>
+
+                            @* Activate/Deactivate buttons *@
+                            @if (context.EmailConfirmed)
+                            {
+                                <Button Color="ButtonColor.Secondary" @onclick="() => OpenDeactivateUserModal(context)">
+                                    <i class="bi bi-lock-fill"></i>
+                                </Button>
+                            }
+                            else
+                            {
+                                <Button Color="ButtonColor.Success" @onclick="() => OpenActivateUserModal(context)">
+                                    <i class="bi bi-unlock-fill"></i>
+                                </Button>
+                            }
                         </div>
                     </GridColumn>
                 </Grid>
@@ -101,17 +126,26 @@
 <Modal @ref="userModal" Title="@(editingUser == null ? "Create User" : "Edit User")" Size="ModalSize.Large">
     <BodyTemplate>
         <div class="mb-3">
+            <label class="form-label">First Name *</label>
+            <input type="text" class="form-control" @bind="userForm.FirstName" required />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Last Name *</label>
+            <input type="text" class="form-control" @bind="userForm.LastName" required />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">User Name *</label>
+            <input type="text" class="form-control" @bind="userForm.UserName" required />
+        </div>
+        <div class="mb-3">
             <label class="form-label">Email *</label>
             <input type="email" class="form-control" @bind="userForm.Email" required />
         </div>
 
-        @if (editingUser == null)
-        {
-            <div class="mb-3">
-                <label class="form-label">Password *</label>
-                <input type="password" class="form-control" @bind="userForm.Password" required />
-            </div>
-        }
+        <div class="mb-3">
+            <label class="form-label">Password *</label>
+            <input type="password" class="form-control" @bind="userForm.Password" required />
+        </div>
 
         <div class="mb-3">
             <label class="form-label">Phone Number</label>
@@ -195,6 +229,10 @@
     private UserFormModel userForm = new();
     private PasswordFormModel passwordForm = new();
 
+    // resend confirmation state
+    private HashSet<string> sendingConfirmation = new();
+    private Dictionary<string, string?> confirmationLinks = new();
+
     protected override async Task OnInitializedAsync()
     {
         await LoadUsers();
@@ -261,29 +299,30 @@
         try
         {
             if (editingUser == null)
-            {
-                // Create new user
+            {                
                 var request = new CreateUserRequest(
+                    userForm.FirstName!,
+                    userForm.LastName!,
+                    userForm.UserName!,
                     userForm.Email!,
                     userForm.Password!,
                     userForm.PhoneNumber,
                     userForm.Roles
                 );
                 await UserManagementService.CreateUserAsync(request);
-                //ToastService.ShowSuccess("User created successfully");
             }
             else
-            {
-                // Update existing user
+            {                
                 var request = new UpdateUserRequest(
                     editingUser.Id,
+                    userForm.FirstName!,
+                    userForm.LastName!,
                     userForm.Email!,
-                    userForm.Email,
+                    userForm.UserName!,
                     userForm.PhoneNumber,
                     userForm.Roles
                 );
                 await UserManagementService.UpdateUserAsync(editingUser.Id, request);
-                //ToastService.ShowSuccess("User updated successfully");
             }
 
             await LoadUsers();
@@ -361,6 +400,31 @@
         }
     }
 
+    private async Task OpenActivateUserModal(UserDto user)
+    {
+        var confirmation = await deleteDialog.ShowAsync(
+            title: "Activate User",
+            message1: $"Are you sure you want to activate user '{user.Email}'?",
+            message2: "This action cannot be undone.");
+
+        if (confirmation)
+        {
+            await ActivateUser(user.Id);
+        }
+    }
+
+    private async Task OpenDeactivateUserModal(UserDto user)
+    {
+        var confirmation = await deleteDialog.ShowAsync(
+            title: "Deactivate User",
+            message1: $"Are you sure you want to deactivate user '{user.Email}'?",
+            message2: "This action cannot be undone.");
+        if (confirmation)
+        {
+            await DeactivateUser(user.Id);
+        }
+    }
+
     private async Task DeleteUser(string userId)
     {
         try
@@ -375,6 +439,34 @@
         }
     }
 
+    private async Task ActivateUser(string userId)
+    {
+        try
+        {
+            await UserManagementService.ActivateUserAsync(userId);
+            //ToastService.ShowSuccess("User activated successfully");
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            //ToastService.ShowError($"Failed to activate user: {ex.Message}");
+        }
+    }
+
+    private async Task DeactivateUser(string userId)
+    {
+        try
+        {
+            await UserManagementService.DeactivateUserAsync(userId);
+            //ToastService.ShowSuccess("User deactivated successfully");
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            //ToastService.ShowError($"Failed to deactivate user: {ex.Message}");
+        }
+    }
+
     private async Task HandleProfilePictureUpload(InputFileChangeEventArgs e)
     {
         if (editingUser == null)
@@ -385,9 +477,9 @@
             var file = e.File;
             using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
             await UserManagementService.UploadProfilePictureAsync(
-                editingUser.Id, 
-                stream, 
-                file.Name, 
+                editingUser.Id,
+                stream,
+                file.Name,
                 file.ContentType);
 
             //ToastService.ShowSuccess("Profile picture uploaded successfully");
@@ -437,8 +529,80 @@
             userForm.Roles.Remove(role);
     }
 
+    private bool IsSendingConfirmation(string userId) => sendingConfirmation.Contains(userId);
+
+    private async Task SendConfirmation(UserDto user)
+    {
+        if (user == null)
+            return;
+
+        try
+        {
+            sendingConfirmation.Add(user.Id);
+            confirmationLinks.Remove(user.Id);
+            StateHasChanged();
+
+            var client = HttpFactory.CreateClient("Api");
+            var resp = await client.PostAsync($"api/usermanagement/{user.Id}/send-confirmation", null);
+            var content = await resp.Content.ReadAsStringAsync();
+
+            if (resp.IsSuccessStatusCode)
+            {
+                // try parse response body for confirmation link or message
+                try
+                {
+                    using var doc = JsonDocument.Parse(content);
+                    if (doc.RootElement.TryGetProperty("ConfirmationLink", out var linkProp))
+                    {
+                        confirmationLinks[user.Id] = linkProp.GetString();
+                        ToastService.Notify(new ToastMessage(ToastType.Success, "Confirmation link returned by server."));
+                    }
+                    else if (doc.RootElement.TryGetProperty("Message", out var msgProp))
+                    {
+                        ToastService.Notify(new ToastMessage(ToastType.Success, msgProp.GetString() ?? "Confirmation sent."));
+                    }
+                    else
+                    {
+                        ToastService.Notify(new ToastMessage(ToastType.Success, "Confirmation email sent (if configured)."));
+                    }
+                }
+                catch
+                {
+                    ToastService.Notify(new ToastMessage(ToastType.Success, "Confirmation email sent (if configured)."));
+                }
+            }
+            else
+            {
+                // surface server error
+                var msg = !string.IsNullOrEmpty(content) ? content : "Failed to send confirmation.";
+                ToastService.Notify(new ToastMessage(ToastType.Danger, msg));
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.Notify(new ToastMessage(ToastType.Danger, $"Error: {ex.Message}"));
+        }
+        finally
+        {
+            sendingConfirmation.Remove(user.Id);
+            StateHasChanged();
+        }
+    }
+
     private class UserFormModel
     {
+        public string? FirstName
+        {
+            get; set;
+        }
+        public string? LastName
+        {
+            get; set;
+        }
+        public string? UserName
+        {
+            get; set;
+        }
         public string? Email
         {
             get; set;

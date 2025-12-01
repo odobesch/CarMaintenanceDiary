@@ -42,6 +42,18 @@ public class UserManagementApiService : IUserManagementService
         response.EnsureSuccessStatusCode();
     }
 
+    public async Task ActivateUserAsync(string userId)
+    {
+        var response = await _http.PostAsync($"api/usermanagement/{userId}/activate", null);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task DeactivateUserAsync(string userId)
+    {
+        var response = await _http.PostAsync($"api/usermanagement/{userId}/deactivate", null);
+        response.EnsureSuccessStatusCode();
+    }
+
     public async Task ChangePasswordAsync(string userId, ChangePasswordRequest request)
     {
         var response = await _http.PostAsJsonAsync($"api/usermanagement/{userId}/change-password", request);

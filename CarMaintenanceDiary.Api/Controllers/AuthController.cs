@@ -1,4 +1,4 @@
-using CarMaintenanceDiary.Infrastructure.Identity;
+﻿using CarMaintenanceDiary.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -130,21 +130,22 @@ namespace CarMaintenanceDiary.Api.Controllers
         {
             var jwt = _config.GetSection("Jwt");
             var claims = new List<Claim>
-            {
-                new(ClaimTypes.NameIdentifier, user.Id),
-                new(ClaimTypes.Name, user.UserName ?? "")
-            };
+    {
+        new(ClaimTypes.NameIdentifier, user.Id),
+        new(ClaimTypes.Name, user.UserName ?? ""),
+        new(ClaimTypes.Email, user.Email ?? "") 
+    };
             claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"] ?? throw new InvalidOperationException("JWT Key not configured")));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
             var expires = DateTime.UtcNow.AddMinutes(int.Parse(jwt["AccessTokenMinutes"] ?? "20"));
             var token = new JwtSecurityToken(
-            issuer: jwt["Issuer"],
-            audience: jwt["Audience"],
-            claims: claims,
-            expires: expires,
-            signingCredentials: creds);
+                issuer: jwt["Issuer"],
+                audience: jwt["Audience"],
+                claims: claims,
+                expires: expires,
+                signingCredentials: creds);
             return (new JwtSecurityTokenHandler().WriteToken(token), expires);
         }
 

@@ -23,6 +23,9 @@ namespace CarMaintenanceDiary.Shared.DTOs
         [Required(ErrorMessage = "VIN is required")]
         [StringLength(17, MinimumLength = 11, ErrorMessage = "VIN must be between 11 and 17 characters")]
         public string VIN { get; set; } = string.Empty;
+
+        public string UserId { get; set; } = string.Empty;
+
         public ICollection<MaintenanceRecordDto> MaintenanceRecords { get; set; } = new List<MaintenanceRecordDto>();
         public ICollection<FuelRecordDto> FuelRecords { get; set; } = new List<FuelRecordDto>();
 
