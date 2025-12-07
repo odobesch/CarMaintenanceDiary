@@ -10,22 +10,36 @@ using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.Processing;
 using Microsoft.AspNetCore.Authorization;
+using CarMaintenanceDiary.Infrastructure.Security;
 
 namespace CarMaintenanceDiary.Api.Controllers
 {
-    [Route("api/[controller]")]    
-    public class FuelController : Controller
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize]
+    public class FuelController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IUserContext _userContext;
 
-        public FuelController(ApplicationDbContext context)
+        public FuelController(ApplicationDbContext context, IUserContext userContext)
         {
             _context = context;
+            _userContext = userContext;
         }
 
         [HttpGet("{vehicleId}")]
         public async Task<ActionResult<List<FuelRecordDto>>> GetFuelRecords(int vehicleId)
         {
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == vehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
+
             var records = await _context.FuelEntries
                 .Where(r => r.VehicleId == vehicleId)
                 .OrderBy(r => r.Date)
@@ -49,24 +63,35 @@ namespace CarMaintenanceDiary.Api.Controllers
         [HttpGet("record/{recordId}")]
         public async Task<ActionResult<FuelRecordDto>> GetFuelRecordById(int recordId)
         {
-            var record = await _context.FuelEntries
-                .Where(r => r.Id == recordId)
-                .Select(r => new FuelRecordDto
-                {
-                    Id = r.Id,
-                    VehicleId = r.VehicleId,
-                    Date = r.Date,
-                    Odometer = r.Odometer,
-                    Liters = r.Liters,
-                    PricePerLiter = r.PricePerLiter,
-                    FuelStation = r.FuelStation,
-                    FullTank = r.FullTank,
-                    PhotoIds = r.Photos.Select(p => p.Id).ToList()
-                })
-                .FirstOrDefaultAsync();
+            var recordEntity = await _context.FuelEntries
+                .Include(r => r.Photos)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.Id == recordId);
 
-            if (record == null)
+            if (recordEntity == null)
                 return NotFound();
+
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == recordEntity.VehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
+
+            var record = new FuelRecordDto
+            {
+                Id = recordEntity.Id,
+                VehicleId = recordEntity.VehicleId,
+                Date = recordEntity.Date,
+                Odometer = recordEntity.Odometer,
+                Liters = recordEntity.Liters,
+                PricePerLiter = recordEntity.PricePerLiter,
+                FuelStation = recordEntity.FuelStation,
+                FullTank = recordEntity.FullTank,
+                PhotoIds = recordEntity.Photos.Select(p => p.Id).ToList()
+            };
 
             return Ok(record);
         }
@@ -74,6 +99,15 @@ namespace CarMaintenanceDiary.Api.Controllers
         [HttpPost("{vehicleId}")]
         public async Task<IActionResult> AddFuelRecord(int vehicleId, [FromBody] FuelRecordDto dto)
         {
+            var vehicle = await _context.Vehicles.FindAsync(vehicleId);
+            if (vehicle == null)
+                return NotFound("Vehicle not found.");
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
+
             var entry = new FuelRecord
             {
                 VehicleId = vehicleId,
@@ -100,6 +134,15 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (record == null)
                 return NotFound();
 
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == record.VehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
+
             record.Date = dto.Date;
             record.Odometer = dto.Odometer;
             record.Liters = dto.Liters;
@@ -118,6 +161,15 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (record == null)
                 return NotFound();
 
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == record.VehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
+
             _context.FuelEntries.Remove(record);
             await _context.SaveChangesAsync();
             return Ok();
@@ -126,6 +178,15 @@ namespace CarMaintenanceDiary.Api.Controllers
         [HttpGet("summary/monthly/{vehicleId}")]
         public async Task<IActionResult> GetMonthlySummary(int vehicleId)
         {
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == vehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
+
             var records = await _context.FuelEntries
                 .Where(r => r.VehicleId == vehicleId)
                 .OrderBy(r => r.Date)
@@ -134,8 +195,8 @@ namespace CarMaintenanceDiary.Api.Controllers
             var grouped = records
                 .GroupBy(r => new { r.Date.Year, r.Date.Month })
                 .Select(g =>
-                {
-                    var ordered = g.OrderByDescending(x => x.Odometer).ToList();
+                {                    
+                    var ordered = g.OrderBy(x => x.Odometer).ToList();
                     var distance = ordered.Last().Odometer - ordered.First().Odometer;
                     var totalLiters = ordered.Sum(x => x.Liters);
                     var totalCost = ordered.Sum(x => (decimal)x.Liters * x.PricePerLiter);
@@ -156,6 +217,15 @@ namespace CarMaintenanceDiary.Api.Controllers
         [HttpGet("summary/yearly/{vehicleId}")]
         public async Task<IActionResult> GetYearlySummary(int vehicleId)
         {
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == vehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
+
             var records = await _context.FuelEntries
                 .Where(r => r.VehicleId == vehicleId)
                 .OrderBy(r => r.Date)
@@ -165,7 +235,7 @@ namespace CarMaintenanceDiary.Api.Controllers
                 .GroupBy(r => r.Date.Year)
                 .Select(g =>
                 {
-                    var ordered = g.OrderByDescending(x => x.Odometer).ToList();
+                    var ordered = g.OrderBy(x => x.Odometer).ToList();
                     var distance = ordered.Last().Odometer - ordered.First().Odometer;
                     var totalLiters = ordered.Sum(x => x.Liters);
                     var totalCost = ordered.Sum(x => (decimal)x.Liters * x.PricePerLiter);
@@ -191,6 +261,15 @@ namespace CarMaintenanceDiary.Api.Controllers
             var record = await _context.FuelEntries.FindAsync(recordId);
             if (record == null)
                 return NotFound("Fuel record not found.");
+
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == record.VehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
 
             await using var ms = new MemoryStream();
             await file.CopyToAsync(ms);
@@ -302,6 +381,19 @@ namespace CarMaintenanceDiary.Api.Controllers
             var photo = await _context.FuelPhotos.FindAsync(photoId);
             if (photo == null)
                 return NotFound();
+
+            var record = await _context.FuelEntries.AsNoTracking().FirstOrDefaultAsync(r => r.Id == photo.FuelRecordId);
+            if (record == null)
+                return NotFound();
+
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == record.VehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
 
             _context.FuelPhotos.Remove(photo);
             await _context.SaveChangesAsync();

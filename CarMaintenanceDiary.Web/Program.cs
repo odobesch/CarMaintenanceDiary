@@ -1,7 +1,10 @@
 using BlazorBootstrap;
+using CarMaintenanceDiary.Application;
 using CarMaintenanceDiary.Application.Interfaces;
 using CarMaintenanceDiary.Application.Services;
 using CarMaintenanceDiary.Infrastructure.Data;
+using CarMaintenanceDiary.Web;
+using CarMaintenanceDiary.Web.Authentication;
 using CarMaintenanceDiary.Web.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
@@ -30,38 +33,60 @@ builder.Services.AddScoped<ProtectedLocalStorage>();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
  options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddScoped<ITokenStore, InMemoryTokenStore>();
-builder.Services.AddScoped<JwtAuthenticationStateProvider>();
-builder.Services.AddScoped<AuthenticationStateProvider>(s => s.GetRequiredService<JwtAuthenticationStateProvider>());
+builder.Services.AddScoped<CustomAuthStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(s => s.GetRequiredService<CustomAuthStateProvider>());
 
-builder.Services.AddTransient<ApiAuthHttpHandler>();
+builder.Services.AddAuthenticationCore();
+builder.Services.AddCascadingAuthenticationState();
 
-// Named API client for auth and other calls
+builder.Services.AddOutputCache();
+
+// Register the token accessor
+builder.Services.AddScoped<IAuthTokenAccessor, BlazorAuthTokenAccessor>();
+
+builder.Services.AddHttpClient<ApiClient>(client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7260/");
+});
+
+// Named API client
 builder.Services.AddHttpClient("Api", client =>
 {
- client.BaseAddress = new Uri("https://localhost:7260/");
-}).AddHttpMessageHandler<ApiAuthHttpHandler>();
+    client.BaseAddress = new Uri("https://localhost:7260/");
+});
 
-// Http clients with auth handler using the named Api client
-builder.Services.AddHttpClient<IVehicleService, VehicleApiService>(client =>
+// Register services manually to ensure proper DI scope
+builder.Services.AddScoped<IVehicleService>(sp =>
 {
- client.BaseAddress = new Uri("https://localhost:7260/");
-}).AddHttpMessageHandler<ApiAuthHttpHandler>();
+    var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+    var httpClient = httpClientFactory.CreateClient("Api");
+    var tokenAccessor = sp.GetRequiredService<IAuthTokenAccessor>();
+    return new VehicleApiService(httpClient, tokenAccessor);
+});
 
-builder.Services.AddHttpClient<IFuelService, FuelApiService>(client =>
+builder.Services.AddScoped<IUserManagementService>(sp =>
 {
- client.BaseAddress = new Uri("https://localhost:7260/");
-}).AddHttpMessageHandler<ApiAuthHttpHandler>();
+    var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+    var httpClient = httpClientFactory.CreateClient("Api");
+    var tokenAccessor = sp.GetRequiredService<IAuthTokenAccessor>();
+    return new UserManagementApiService(httpClient, tokenAccessor);
+});
 
-builder.Services.AddHttpClient<IMaintenanceService, MaintenanceApiService>(client =>
+builder.Services.AddScoped<IFuelService>(sp =>
 {
- client.BaseAddress = new Uri("https://localhost:7260/");
-}).AddHttpMessageHandler<ApiAuthHttpHandler>();
+    var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+    var httpClient = httpClientFactory.CreateClient("Api");
+    var tokenAccessor = sp.GetRequiredService<IAuthTokenAccessor>();
+    return new FuelApiService(httpClient, tokenAccessor);
+});
 
-builder.Services.AddHttpClient<IUserManagementService, UserManagementApiService>(client =>
+builder.Services.AddScoped<IMaintenanceService>(sp =>
 {
- client.BaseAddress = new Uri("https://localhost:7260/");
-}).AddHttpMessageHandler<ApiAuthHttpHandler>();
+    var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+    var httpClient = httpClientFactory.CreateClient("Api");
+    var tokenAccessor = sp.GetRequiredService<IAuthTokenAccessor>();
+    return new MaintenanceApiService(httpClient, tokenAccessor);
+});
 
 builder.Services.AddScoped<FuelStationService>();
 builder.Services.AddSingleton<ToastService>();
@@ -81,12 +106,15 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseOutputCache();
+
 app.UseAntiforgery();
 
-// If you have static assets mapping
 app.MapStaticAssets();
 
 app.MapRazorPages();
+
+app.MapControllers();
 
 app.MapRazorComponents<CarMaintenanceDiary.Web.Components.App>()
  .AddInteractiveServerRenderMode();

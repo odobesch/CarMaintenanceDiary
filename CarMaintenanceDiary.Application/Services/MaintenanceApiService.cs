@@ -15,45 +15,65 @@ namespace CarMaintenanceDiary.Application.Services
     {
         private readonly HttpClient _http;
         private const long MaxUploadBytes = 20_000_000;
+        private readonly IAuthTokenAccessor _tokenAccessor;
 
-        public MaintenanceApiService(HttpClient http)
+        public MaintenanceApiService(HttpClient http, IAuthTokenAccessor tokenAccessor)
         {
             _http = http;
+            _tokenAccessor = tokenAccessor;
+        }
+
+        private async Task SetAuthHeaderAsync()
+        {
+            var token = await _tokenAccessor.GetTokenAsync();
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            }
+            else
+            {
+                Console.WriteLine("[VehicleApiService] WARNING: Token is null or empty, NOT setting auth header!");
+            }
         }
 
         public async Task<List<MaintenanceRecordDto>> GetMaintenanceRecordsAsync(int vehicleId)
         {
-            // GET api/maintenance/vehicle/{vehicleId}/records
+            await SetAuthHeaderAsync();            
             var result = await _http.GetFromJsonAsync<List<MaintenanceRecordDto>>($"api/maintenance/vehicle/{vehicleId}/records");
             return result ?? new List<MaintenanceRecordDto>();
         }
 
         public async Task<MaintenanceRecordDto?> GetMaintenanceRecordByIdAsync(int id)
         {
+            await SetAuthHeaderAsync();
             var result = await _http.GetFromJsonAsync<MaintenanceRecordDto?>($"api/maintenance/records/{id}");
             return result;
         }
 
         public async Task AddMaintenanceRecordAsync(int vehicleId, MaintenanceRecordDto dto)
         {
+            await SetAuthHeaderAsync();
             var res = await _http.PostAsJsonAsync($"api/maintenance/vehicle/{vehicleId}/records", dto);
             res.EnsureSuccessStatusCode();
         }
 
         public async Task UpdateMaintenanceRecordAsync(MaintenanceRecordDto dto)
         {
+            await SetAuthHeaderAsync();
             var res = await _http.PutAsJsonAsync($"api/maintenance/records/{dto.Id}", dto);
             res.EnsureSuccessStatusCode();
         }
 
         public async Task DeleteMaintenanceRecordAsync(int id)
         {
+            await SetAuthHeaderAsync();
             var res = await _http.DeleteAsync($"api/maintenance/records/{id}");
             res.EnsureSuccessStatusCode();
         }
 
         public async Task<int?> UploadDocumentAsync(int maintenanceRecordId, Stream fileStream, string fileName, string? contentType = null)
-        {
+        {            
             if (fileStream == null)
                 return null;
             if (fileStream.CanSeek)
@@ -70,7 +90,7 @@ namespace CarMaintenanceDiary.Application.Services
             streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType ?? "application/octet-stream");
             content.Add(streamContent, "file", fileName);
 
-            // POST api/maintenance/records/{id}/documents
+            await SetAuthHeaderAsync();            
             var res = await _http.PostAsync($"api/maintenance/records/{maintenanceRecordId}/documents", content);
             if (!res.IsSuccessStatusCode)
                 return null;
@@ -90,21 +110,22 @@ namespace CarMaintenanceDiary.Application.Services
         }
 
         public async Task DeleteDocumentAsync(int documentId)
-        {
-            // DELETE api/maintenance/documents/{documentId}
+        {            
+            await SetAuthHeaderAsync();
             var res = await _http.DeleteAsync($"api/maintenance/documents/{documentId}");
             res.EnsureSuccessStatusCode();
         }
 
         public async Task<List<int>> GetDocumentIdsAsync(int maintenanceRecordId)
         {
-            // GET api/maintenance/records/{id}/documents
+            await SetAuthHeaderAsync();
             var ids = await _http.GetFromJsonAsync<List<int>>($"api/maintenance/records/{maintenanceRecordId}/documents");
             return ids ?? new List<int>();
         }
 
         public async Task<List<MaintenanceDocumentDto>> GetDocumentsAsync(int maintenanceRecordId)
         {
+            await SetAuthHeaderAsync();
             var list = await _http.GetFromJsonAsync<List<MaintenanceDocumentDto>>($"api/maintenance/records/{maintenanceRecordId}/documents");
             return list ?? new List<MaintenanceDocumentDto>();
         }

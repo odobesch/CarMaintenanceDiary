@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarMaintenanceDiary.Api", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarMaintenanceDiary.Mobile", "CarMaintenanceDiary.Mobile\CarMaintenanceDiary.Mobile.csproj", "{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarMaintenanceDiary.Model", "CarMaintenanceDiary.Model\CarMaintenanceDiary.Model.csproj", "{1662FE1D-194F-44D7-AC66-C77FDC3051B3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -126,6 +128,18 @@ Global
 		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Release|x64.Build.0 = Release|Any CPU
 		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Release|x86.ActiveCfg = Release|Any CPU
 		{3E530E0D-79BC-4AE6-9752-8B7FF659E32F}.Release|x86.Build.0 = Release|Any CPU
+		{1662FE1D-194F-44D7-AC66-C77FDC3051B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1662FE1D-194F-44D7-AC66-C77FDC3051B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1662FE1D-194F-44D7-AC66-C77FDC3051B3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1662FE1D-194F-44D7-AC66-C77FDC3051B3}.Debug|x64.Build.0 = Debug|Any CPU
+		{1662FE1D-194F-44D7-AC66-C77FDC3051B3}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1662FE1D-194F-44D7-AC66-C77FDC3051B3}.Debug|x86.Build.0 = Debug|Any CPU
+		{1662FE1D-194F-44D7-AC66-C77FDC3051B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1662FE1D-194F-44D7-AC66-C77FDC3051B3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1662FE1D-194F-44D7-AC66-C77FDC3051B3}.Release|x64.ActiveCfg = Release|Any CPU
+		{1662FE1D-194F-44D7-AC66-C77FDC3051B3}.Release|x64.Build.0 = Release|Any CPU
+		{1662FE1D-194F-44D7-AC66-C77FDC3051B3}.Release|x86.ActiveCfg = Release|Any CPU
+		{1662FE1D-194F-44D7-AC66-C77FDC3051B3}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,7 +1,9 @@
 ﻿using CarMaintenanceDiary.Application.Interfaces;
 using CarMaintenanceDiary.Core.Models;
 using CarMaintenanceDiary.Infrastructure.Data;
+using CarMaintenanceDiary.Infrastructure.Security;
 using CarMaintenanceDiary.Shared.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
@@ -10,25 +12,37 @@ using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.Processing;
-using Microsoft.AspNetCore.Authorization;
 
 namespace CarMaintenanceDiary.Api.Controllers
 {
-    [Route("api/[controller]")]    
+    [ApiController]
+    [Route("api/[controller]")]   
+    [Authorize]
     public class VehiclesController : ControllerBase
-    {        
+    {
         private readonly ApplicationDbContext _context;
+        private readonly IUserContext _userContext;
 
-        public VehiclesController(ApplicationDbContext context)
+        public VehiclesController(ApplicationDbContext context, IUserContext userContext)
         {
             _context = context;
+            _userContext = userContext;
         }
 
         [HttpGet("getall")]
         public async Task<ActionResult<List<VehicleDto>>> GetAll()
         {
-            var vehicles = await _context.Vehicles
-                .AsNoTracking()
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+
+            var query = _context.Vehicles.AsNoTracking();
+
+             if (!isAdmin)
+            {
+                query = query.Where(v => v.UserId == currentUserId);
+            }
+
+            var vehicles = await query
                 .Select(v => new VehicleDto
                 {
                     Id = v.Id,
@@ -36,7 +50,8 @@ namespace CarMaintenanceDiary.Api.Controllers
                     Model = v.Model,
                     Year = v.Year,
                     LicensePlate = v.LicensePlate.ToUpper(),
-                    VIN = v.VIN
+                    VIN = v.VIN,
+                    UserId = v.UserId
                 })
                 .ToListAsync();
 

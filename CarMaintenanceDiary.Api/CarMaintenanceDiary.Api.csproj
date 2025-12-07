@@ -24,7 +24,9 @@
   <ItemGroup>
     <ProjectReference Include="..\CarMaintenanceDiary.Application\CarMaintenanceDiary.Application.csproj" />
     <ProjectReference Include="..\CarMaintenanceDiary.Infrastructure\CarMaintenanceDiary.Infrastructure.csproj" />
+    <ProjectReference Include="..\CarMaintenanceDiary.Model\CarMaintenanceDiary.Model.csproj" />
     <ProjectReference Include="..\CarMaintenanceDiary.Shared\CarMaintenanceDiary.Shared.csproj" />
+    <ProjectReference Include="..\CarMaintenanceDiary.Web\CarMaintenanceDiary.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>

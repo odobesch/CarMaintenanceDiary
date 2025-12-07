@@ -1,8 +1,7 @@
-@using CarMaintenanceDiary.Web.Services
+@using CarMaintenanceDiary.Web.Authentication
 @using Microsoft.AspNetCore.Components.Authorization
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject JwtAuthenticationStateProvider AuthProvider
-@inject ITokenStore TokenStore
+@inject CustomAuthStateProvider AuthProvider
 @inject NavigationManager Navigation
 @inject IHttpClientFactory HttpFactory
 @inject ILogger<LoginDisplay> Logger

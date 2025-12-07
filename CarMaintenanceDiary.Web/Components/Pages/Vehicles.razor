@@ -7,6 +7,7 @@
 @inject IJSRuntime JS
 @inject IVehicleService VehicleService
 @inject ToastService ToastService
+@inject AuthenticationStateProvider AuthStateProvider
 @inject ILogger<Vehicles> Logger
 
 <style>
@@ -61,38 +62,38 @@
             </div>
         }
         else
-        { 
+        {
             <Grid TItem="VehicleDto"
-            Class="table table-hover table-bordered table-striped"
-            Data="@vehicles"
-            AllowFiltering="true"
-            AllowPaging="true" PageSize="10"
-            PageSizeSelectorVisible="true"
-            PageSizeSelectorItems="@(new int[] { 5,10,20 })"
-            AllowSorting="true"
-            AllowSelection="false"
-            SelectionMode="GridSelectionMode.Single"
-            Responsive="true">
+                  Class="table table-hover table-bordered table-striped"
+                  Data="@vehicles"
+                  AllowFiltering="true"
+                  AllowPaging="true" PageSize="10"
+                  PageSizeSelectorVisible="true"
+                  PageSizeSelectorItems="@(new int[] { 5,10,20 })"
+                  AllowSorting="true"
+                  AllowSelection="false"
+                  SelectionMode="GridSelectionMode.Single"
+                  Responsive="true">
 
                 <GridColumns>
                     <GridColumn TItem="VehicleDto" HeaderText="Make" PropertyName="Make" SortKeySelector="v => v.Make"
-                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                         @context.Make
                     </GridColumn>
                     <GridColumn TItem="VehicleDto" HeaderText="Model" PropertyName="Model" SortKeySelector="v => v.Model"
-                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                         @context.Model
                     </GridColumn>
                     <GridColumn TItem="VehicleDto" HeaderText="Year" PropertyName="Year" SortKeySelector="v => v.Year"
-                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                         @context.Year
                     </GridColumn>
                     <GridColumn TItem="VehicleDto" HeaderText="License Plate" PropertyName="LicensePlate" SortKeySelector="v => v.LicensePlate"
-                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                         @context.LicensePlate
                     </GridColumn>
                     <GridColumn TItem="VehicleDto" HeaderText="VIN" PropertyName="VIN" SortKeySelector="v => v.VIN"
-                    HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+                                HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
                         @context.VIN
                     </GridColumn>
 
@@ -101,9 +102,9 @@
                         <button class="btn btn-sm btn-primary me-1" @onclick="() => EditVehicle(context)">Edit</button>
                         <button class="btn btn-sm btn-danger" @onclick="() => DeleteVehicle(context.Id)">Delete</button>
                     </GridColumn>
-                </GridColumns>            
+                </GridColumns>
             </Grid>
-        }    
+        }
     }
 
     <Modal @ref="modal" Title="@ModalTitle">
@@ -164,7 +165,7 @@
                         <div class="m-2 text-center photo-thumbnail">
                             <img src="@VehicleService.GetPhotoUrl(pid, 300, 150)"
                                  srcset="@VehicleService.GetPhotoUrl(pid, 300, 150) 1x,
-                            @VehicleService.GetPhotoUrl(pid, 300, 150, dpr: 2) 2x"
+                                    @VehicleService.GetPhotoUrl(pid, 300, 150, dpr: 2) 2x"
                                  width="300" height="150"
                                  loading="lazy" decoding="async"
                                  @onclick="() => ShowPhotoDetail(pid)" />
@@ -215,7 +216,7 @@
         private List<VehicleDto> vehicles = new();
         private VehicleDto formVehicle = new();
         private bool editMode = false;
-        private bool isLoading = true;
+        private bool isLoading = true;       
         private Modal? modal;
         private string ModalTitle => editMode ? "Edit Vehicle" : "Add Vehicle";
         private ConfirmDialog confirmDialog = default!;
@@ -227,13 +228,21 @@
         private int? selectedPhotoId;
         private string? selectedPhotoUrl;
 
-        protected override async Task OnInitializedAsync()
+        protected override async Task OnAfterRenderAsync(bool firstRender)
         {
-            await LoadVehicles();
+            if (firstRender)
+            {                
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                if (authState.User.Identity is { IsAuthenticated: true })
+                {
+                    await LoadVehicles();
+                }
+                StateHasChanged();
+            }
         }
 
         private async Task LoadVehicles()
-        {     
+        {
             isLoading = true;
             vehicles = await VehicleService.GetAllAsync();
             isLoading = false;
@@ -273,13 +282,13 @@
                 try
                 {
                     await VehicleService.UpdateAsync(formVehicle);
-                    ToastService.Notify(new ToastMessage(ToastType.Success,"Vehicle updated."));
+                    ToastService.Notify(new ToastMessage(ToastType.Success, "Vehicle updated."));
                 }
                 catch (Exception ex)
                 {
                     Logger.LogError(ex, "Error updating vehicle with ID {Id}", formVehicle.Id);
                     ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to update vehicle."));
-                }            
+                }
             }
             else
             {
@@ -299,7 +308,7 @@
                 {
                     Logger.LogError(ex, "Error creating vehicle with ID {Id}", formVehicle.Id);
                     ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to create vehicle."));
-                }            
+                }
             }
 
             formVehicle = new();
@@ -313,7 +322,7 @@
             var vehicle = vehicles.FirstOrDefault(v => v.Id == id);
             if (vehicle is null)
                 return;
-           
+
             var confirmed = await confirmDialog.ShowAsync($"Delete vehicle", $"Delete vehicle {vehicle.Make} {vehicle.Model}?");
             if (!confirmed)
                 return;
@@ -329,7 +338,7 @@
                 Logger.LogError(ex, "Error deleting vehicle with ID {Id}", id);
                 ToastService.Notify(new ToastMessage(ToastType.Danger, "Failed to delete vehicle."));
             }
-        }   
+        }
         private async Task OpenVehiclePhotos(VehicleDto vehicle)
         {
             photoVehicleId = vehicle.Id;
@@ -346,12 +355,18 @@
                 photoIdsForVehicle = new List<int>();
             }
 
-            await photoModal?.ShowAsync();
+            if (photoModal != null)
+            {
+                await photoModal.ShowAsync();
+            }
         }
 
         private async Task ClosePhotoModal()
         {
-            await photoModal?.HideAsync();
+            if (photoModal != null)
+            {
+                await photoModal.HideAsync();
+            }
             photoIdsForVehicle.Clear();
         }
 
@@ -365,22 +380,28 @@
         int? q = null)
         {
             return (w.HasValue && h.HasValue)
-                ? VehicleService.GetPhotoUrl(id, w.Value, h.Value, mode, dpr, format, q)
-                : VehicleService.GetPhotoUrl(id);
+            ? VehicleService.GetPhotoUrl(id, w.Value, h.Value, mode, dpr, format, q)
+            : VehicleService.GetPhotoUrl(id);
         }
 
         private async Task ShowPhotoDetail(int photoId)
         {
             selectedPhotoId = photoId;
             selectedPhotoUrl = PhotoUrl(photoId);
-            await photoDetailModal?.ShowAsync();
+            if (photoDetailModal != null)
+            {
+                await photoDetailModal.ShowAsync();
+            }
         }
 
         private async Task ClosePhotoDetailModal()
         {
             selectedPhotoId = null;
             selectedPhotoUrl = null;
-            await photoDetailModal?.HideAsync();
+            if (photoDetailModal != null)
+            {
+                await photoDetailModal.HideAsync();
+            }            
         }
 
         private async Task DownloadPhoto()

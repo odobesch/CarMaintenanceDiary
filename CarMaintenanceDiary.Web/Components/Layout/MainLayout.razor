@@ -1,10 +1,10 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 @using CarMaintenanceDiary.Web.Shared
-@using CarMaintenanceDiary.Web.Services
 @using BlazorBootstrap
 @using System.Drawing
 @using System.Security.Claims
 @inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <CascadingAuthenticationState>
     <Toasts class="p-3" AutoHide="true" Delay="6000" Placement="ToastsPlacement.TopRight" />
@@ -55,8 +55,19 @@
     private async Task OnShowOffcanvasClick() => await offcanvas.ShowAsync();
 
     private async Task<Sidebar2DataProviderResult> Sidebar2DataProvider(Sidebar2DataProviderRequest request)
-    {      
-        navItems = GetNavItems();
+    { 
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+       
+        var items = GetNavItems().ToList();
+        
+        var isAdmin = user?.Identity?.IsAuthenticated == true && user.IsInRole("Admin");
+        if (!isAdmin)
+        {
+            items = items.Where(i => !string.Equals(i.Href, "/settings", StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        navItems = items;
         return await Task.FromResult(request.ApplyTo(navItems));
     }
 

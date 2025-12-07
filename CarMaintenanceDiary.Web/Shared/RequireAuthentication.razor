@@ -21,15 +21,22 @@ else if (isAuthenticated)
 	private bool checking = true;
 	private bool isAuthenticated;
 
-	protected override async Task OnInitializedAsync()
-	{
-		var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-		isAuthenticated = state.User.Identity?.IsAuthenticated == true;
-		if (!isAuthenticated)
-		{
-			var returnUrl = Uri.EscapeDataString(Navigation.ToBaseRelativePath(Navigation.Uri));
-			Navigation.NavigateTo($"/auth/login?returnUrl={returnUrl}", true);
-		}
-		checking = false;
-	}
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            isAuthenticated = state.User.Identity?.IsAuthenticated == true;
+
+            if (!isAuthenticated)
+            {
+                var returnUrl = Uri.EscapeDataString(Navigation.ToBaseRelativePath(Navigation.Uri));
+                Navigation.NavigateTo($"/auth/login?returnUrl={returnUrl}", true);
+                return;
+            }
+
+            checking = false;
+            StateHasChanged();
+        }
+    }
 }

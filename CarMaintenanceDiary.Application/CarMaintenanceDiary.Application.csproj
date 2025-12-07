@@ -14,12 +14,13 @@
   <ItemGroup>
     <PackageReference Include="HtmlAgilityPack" Version="1.12.1" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CarMaintenanceDiary.Core\CarMaintenanceDiary.Core.csproj" />
     <ProjectReference Include="..\CarMaintenanceDiary.Infrastructure\CarMaintenanceDiary.Infrastructure.csproj" />
+    <ProjectReference Include="..\CarMaintenanceDiary.Model\CarMaintenanceDiary.Model.csproj" />
     <ProjectReference Include="..\CarMaintenanceDiary.Shared\CarMaintenanceDiary.Shared.csproj" />
   </ItemGroup>
 

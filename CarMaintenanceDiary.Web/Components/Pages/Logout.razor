@@ -1,10 +1,8 @@
 ﻿@page "/auth/logout"
-@using CarMaintenanceDiary.Web.Services
+@using CarMaintenanceDiary.Web.Authentication
 @rendermode InteractiveServer
-
-@inject IHttpClientFactory HttpFactory
-@inject ITokenStore TokenStore
-@inject JwtAuthenticationStateProvider AuthProvider
+@inject CustomAuthStateProvider AuthProvider
+@inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @inject ILogger<Logout> Logger
 @inject IJSRuntime JS
@@ -22,26 +20,15 @@
     protected override async Task OnInitializedAsync()
     {
         try
-        {
-            var client = HttpFactory.CreateClient("Api");
+        {            
+            await AuthProvider.MarkUserAsLoggedOutAsync();
             
-            using var resp = await client.PostAsync("api/auth/logout", null);
-            Logger.LogInformation("Logout POST returned {Status} ({Code})", resp.StatusCode, (int)resp.StatusCode);
-
-            if (!resp.IsSuccessStatusCode)
-                Logger.LogWarning("Server logout returned {Status}", resp.StatusCode);
+            Navigation.NavigateTo("/auth/login", replace: true, forceLoad: true);
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Logout request failed");
-        }
-        finally
-        {
-            await TokenStore.SetTokensAsync(null, null);
-            await AuthProvider.MarkUserAsLoggedOutAsync();
-            
-            await Task.Yield();
-            NavigateHome();
+            Logger.LogError(ex, "Logout failed; redirecting to login anyway.");
+            Navigation.NavigateTo("/auth/login", replace: true, forceLoad: true);
         }
     }    
 
@@ -50,8 +37,6 @@
         if (_navigated)
             return;
         _navigated = true;
-        // replace: true avoids a useless entry in back stack
-        // forceLoad: true ensures a clean, unauthenticated shell after logout
         Navigation.NavigateTo("/", replace: true, forceLoad: true);
     }
 }

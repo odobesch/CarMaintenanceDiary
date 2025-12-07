@@ -15,6 +15,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="Radzen.Blazor" Version="8.3.1" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
@@ -25,6 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CarMaintenanceDiary.Infrastructure\CarMaintenanceDiary.Infrastructure.csproj" />
     <ProjectReference Include="..\CarMaintenanceDiary.Application\CarMaintenanceDiary.Application.csproj" />
+    <ProjectReference Include="..\CarMaintenanceDiary.Model\CarMaintenanceDiary.Model.csproj" />
   </ItemGroup>
 
   <ItemGroup>

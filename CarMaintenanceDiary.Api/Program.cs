@@ -1,4 +1,5 @@
-﻿using CarMaintenanceDiary.Application.Interfaces;
+﻿    using CarMaintenanceDiary.Application;
+using CarMaintenanceDiary.Application.Interfaces;
 using CarMaintenanceDiary.Application.Services;
 using CarMaintenanceDiary.Infrastructure.Data;
 using CarMaintenanceDiary.Infrastructure.Email;
@@ -16,8 +17,6 @@ using static CarMaintenanceDiary.Infrastructure.Email.SmtpEmailSender;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -25,11 +24,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddHttpClient();
-builder.Services.AddControllers();
-builder.Services.AddScoped<IVehicleService, VehicleApiService>();
-builder.Services.AddScoped<IFuelService, FuelApiService>();
-builder.Services.AddScoped<IUserManagementService, UserManagementApiService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUserContext, UserContext>();
 
 builder.Services.AddCors(options =>
 {
@@ -41,7 +37,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.Password.RequiredLength = 8;
@@ -55,31 +50,8 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.SignIn.RequireConfirmedEmail = true;
 });
 
-var mailjetSection = builder.Configuration.GetSection("Mailjet");
-var mailjetApiKey = mailjetSection["ApiKey"];
-var mailjetApiSecret = mailjetSection["ApiSecret"];
-
-var mailtrapApiToken = builder.Configuration.GetValue<string>("Mailtrap:ApiToken");
-if (!string.IsNullOrWhiteSpace(mailtrapApiToken))
-{
-    builder.Services.Configure<MailtrapOptions>(builder.Configuration.GetSection("Mailtrap"));
-    builder.Services.AddTransient<IEmailSender, MailtrapEmailSender>();
-}
-else if (!string.IsNullOrWhiteSpace(mailjetApiKey) && !string.IsNullOrWhiteSpace(mailjetApiSecret))
-{
-    builder.Services.Configure<MailjetOptions>(mailjetSection);
-    builder.Services.AddSingleton<IValidateOptions<MailjetOptions>, MailjetOptionsValidator>();
-    builder.Services.AddTransient<IEmailSender, MailjetEmailSender>();
-}
-else
-{
-    builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
-    builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
-}
-
-// JWT
 var jwt = builder.Configuration.GetSection("Jwt");
-var key = Encoding.UTF8.GetBytes(jwt["Key"] ?? throw new InvalidOperationException("JWT Key not configured"));
+var key = Encoding.UTF8.GetBytes(jwt["Secret"] ?? throw new InvalidOperationException("JWT Key not configured"));
 
 builder.Services.AddAuthentication(options =>
 {
@@ -96,29 +68,55 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwt["Issuer"],
         ValidAudience = jwt["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(key)
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        RoleClaimType = ClaimTypes.Role,
+        NameClaimType = ClaimTypes.Name,
+        ClockSkew = TimeSpan.FromMinutes(5)
+    };    
+    
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"[JWT] Authentication failed: {context.Exception.Message}");
+            Console.WriteLine($"[JWT] Exception type: {context.Exception.GetType().Name}");
+            if (context.Exception.InnerException != null)
+            {
+                Console.WriteLine($"[JWT] Inner exception: {context.Exception.InnerException.Message}");
+            }
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            Console.WriteLine($"[JWT] Token validated successfully for: {context.Principal?.Identity?.Name}");
+            return Task.CompletedTask;
+        },
+        OnMessageReceived = context =>
+        {
+            var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
+            Console.WriteLine($"[JWT] Message received, Authorization header: {(string.IsNullOrEmpty(authHeader) ? "MISSING" : authHeader.Substring(0, Math.Min(50, authHeader.Length)) + "...")}");
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            Console.WriteLine($"[JWT] Challenge issued. Error: {context.Error}, ErrorDescription: {context.ErrorDescription}");
+            return Task.CompletedTask;
+        }
     };
 });
-
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("AdminOnly", p => p.RequireRole("Admin"));
-});
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+app.UseAuthentication();
+app.UseAuthorization();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
-
 app.UseCors("AllowAll");
-app.UseAuthentication();
-app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();

@@ -12,6 +12,7 @@ namespace CarMaintenanceDiary.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class UserManagementController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -37,7 +38,7 @@ namespace CarMaintenanceDiary.Api.Controllers
             var users = await _userManager.Users.ToListAsync();
             var userDtos = new List<UserDto>();
 
-            foreach (var user in users)
+            foreach (  var user in users)
             {
                 var roles = await _userManager.GetRolesAsync(user);
 
@@ -235,8 +236,7 @@ namespace CarMaintenanceDiary.Api.Controllers
             return NoContent();
         }
 
-        [HttpPost("{id}/change-password")]
-        [AllowAnonymous]
+        [HttpPost("{id}/change-password")]        
         public async Task<IActionResult> ChangePassword(string id, [FromBody] ChangePasswordRequest request)
         {
             if (id != request.UserId)
@@ -278,8 +278,7 @@ namespace CarMaintenanceDiary.Api.Controllers
         /// POST /api/usermanagement/{id}/set-password
         /// Body: { userId, token, newPassword }
         /// </summary>
-        [HttpPost("{id}/set-password")]
-        [AllowAnonymous]
+        [HttpPost("{id}/set-password")]        
         public async Task<IActionResult> SetPassword(string id, [FromBody] SetPasswordRequest request)
         {
             if (id != request.UserId)
@@ -310,8 +309,7 @@ namespace CarMaintenanceDiary.Api.Controllers
             return NoContent();
         }
 
-        [HttpPost("{id}/profile-picture")]
-        [AllowAnonymous]
+        [HttpPost("{id}/profile-picture")]       
         public async Task<IActionResult> UploadProfilePicture(string id, [FromForm] IFormFile file)
         {
             var user = await _userManager.FindByIdAsync(id);
@@ -334,8 +332,7 @@ namespace CarMaintenanceDiary.Api.Controllers
             });
         }
 
-        [HttpGet("{id}/profile-picture")]
-        [AllowAnonymous]
+        [HttpGet("{id}/profile-picture")]        
         public async Task<IActionResult> GetProfilePicture(string id)
         {
             var user = await _userManager.FindByIdAsync(id);
@@ -345,8 +342,7 @@ namespace CarMaintenanceDiary.Api.Controllers
             return File(user.ProfilePicture, user.ProfilePictureContentType ?? "image/jpeg");
         }
 
-        [HttpDelete("{id}/profile-picture")]
-        [AllowAnonymous]
+        [HttpDelete("{id}/profile-picture")]        
         public async Task<IActionResult> DeleteProfilePicture(string id)
         {
             var user = await _userManager.FindByIdAsync(id);
@@ -374,8 +370,7 @@ namespace CarMaintenanceDiary.Api.Controllers
         /// Confirm email endpoint. Token must be Base64Url encoded.
         /// Example: GET /api/usermanagement/confirm-email?userId=...&token=...&resetToken=...
         /// </summary>
-        [HttpGet("confirm-email")]
-        [AllowAnonymous]
+        [HttpGet("confirm-email")]       
         public async Task<IActionResult> ConfirmEmail([FromQuery] string userId, [FromQuery] string token)
         {
             if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
@@ -411,8 +406,7 @@ namespace CarMaintenanceDiary.Api.Controllers
         /// Returns the link in response if no IEmailSender is configured.
         /// Now includes a password reset token so the user can set password after confirming.
         /// </summary>
-        [HttpPost("{id}/send-confirmation")]
-        [AllowAnonymous]
+        [HttpPost("{id}/send-confirmation")]       
         public async Task<IActionResult> SendConfirmation(string id)
         {
             var user = await _userManager.FindByIdAsync(id);

@@ -1,6 +1,5 @@
 ﻿using CarMaintenanceDiary.Application.Interfaces;
 using CarMaintenanceDiary.Shared.DTOs;
-using System.Buffers.Text;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -10,26 +9,45 @@ namespace CarMaintenanceDiary.Application.Services
     public class VehicleApiService : IVehicleService
     {
         private readonly HttpClient _http;
+        private readonly IAuthTokenAccessor _tokenAccessor;
         private const long MaxUploadBytes = 10_000_000;
-        public VehicleApiService(HttpClient http)
+
+        public VehicleApiService(HttpClient http, IAuthTokenAccessor tokenAccessor)
         {
             _http = http;
+            _tokenAccessor = tokenAccessor;
+        }
+
+        private async Task SetAuthHeaderAsync()
+        {
+            var token = await _tokenAccessor.GetTokenAsync();
+
+            if (!string.IsNullOrEmpty(token))
+            {                
+                _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);                
+            }
+            else
+            {
+                Console.WriteLine("[VehicleApiService] WARNING: Token is null or empty, NOT setting auth header!");
+            }
         }
 
         public async Task<List<VehicleDto>> GetAllAsync()
         {
-            var result = await _http.GetFromJsonAsync<List<VehicleDto>>("api/vehicles/getall") ?? new();
-            return result;
-        }
+            await SetAuthHeaderAsync();
+            var authHeader = _http.DefaultRequestHeaders.Authorization;
+            return await _http.GetFromJsonAsync<List<VehicleDto>>("api/vehicles/getall") ?? [];
+        }        
 
         public async Task<bool> LicensePlateExistsAsync(string licensePlate)
         {
-            var result = await _http.GetFromJsonAsync<bool>($"api/vehicles/exists/{licensePlate}");
-            return result;
+            await SetAuthHeaderAsync();            
+            return await _http.GetFromJsonAsync<bool>($"api/vehicles/exists/{licensePlate}");
         }
 
         public async Task<int> AddAsync(VehicleDto dto)
         {
+            await SetAuthHeaderAsync();
             var response = await _http.PostAsJsonAsync("api/vehicles", dto);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<int>();
@@ -37,32 +55,37 @@ namespace CarMaintenanceDiary.Application.Services
 
         public async Task UpdateAsync(VehicleDto dto)
         {
+            await SetAuthHeaderAsync();
             var response = await _http.PutAsJsonAsync($"api/vehicles/{dto.Id}", dto);
             response.EnsureSuccessStatusCode();
         }
 
         public async Task DeleteAsync(int id)
         {
+            await SetAuthHeaderAsync();
             var response = await _http.DeleteAsync($"api/vehicles/{id}");
             response.EnsureSuccessStatusCode();
         }
 
         public async Task<VehicleDto?> GetByIdAsync(int id)
         {
-            var result = await _http.GetFromJsonAsync<VehicleDto>($"api/vehicles/{id}");
-            return result;
+            await SetAuthHeaderAsync();
+            return await _http.GetFromJsonAsync<VehicleDto?>($"api/vehicles/{id}");
         }
 
         public async Task<int?> UploadPhotoAsync(int vehicleId, Stream fileStream, string fileName, string? contentType = null)
         {
             if (fileStream == null)
                 return null;
+
             if (fileStream.CanSeek)
                 try
                 {
                     fileStream.Seek(0, SeekOrigin.Begin);
                 }
                 catch { }
+
+            await SetAuthHeaderAsync();
 
             using var content = new MultipartFormDataContent();
             var streamContent = new StreamContent(fileStream);
@@ -88,8 +111,9 @@ namespace CarMaintenanceDiary.Application.Services
 
         public async Task DeletePhotoAsync(int photoId)
         {
-            var res = await _http.DeleteAsync($"api/vehicles/photos/{photoId}");
-            res.EnsureSuccessStatusCode();
+            await SetAuthHeaderAsync();
+            var response = await _http.DeleteAsync($"api/vehicles/photos/{photoId}");
+            response.EnsureSuccessStatusCode();
         }
 
         public string GetPhotoUrl(int photoId)
@@ -113,11 +137,10 @@ namespace CarMaintenanceDiary.Application.Services
             return $"{baseAddr}/api/vehicles/photos/{photoId}?{string.Join("&", qs)}";
         }
 
-        // Added: call the API endpoint that returns the photo id list
         public async Task<List<int>> GetPhotoIdsAsync(int vehicleId)
         {
-            var ids = await _http.GetFromJsonAsync<List<int>>($"api/vehicles/{vehicleId}/photos");
-            return ids ?? new List<int>();
-        }               
+            await SetAuthHeaderAsync();
+            return await _http.GetFromJsonAsync<List<int>>($"api/vehicles/{vehicleId}/photos") ?? [];
+        }
     }
 }

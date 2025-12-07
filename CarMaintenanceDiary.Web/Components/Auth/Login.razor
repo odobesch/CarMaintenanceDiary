@@ -1,15 +1,15 @@
 @page "/auth/login"
-@using CarMaintenanceDiary.Web.Services
 @using System.ComponentModel.DataAnnotations
+@using CarMaintenanceDiary.Model.Models
+@using CarMaintenanceDiary.Web.Authentication
 @using Microsoft.AspNetCore.WebUtilities
-@inject IHttpClientFactory HttpFactory
-@inject JwtAuthenticationStateProvider AuthProvider
-@inject ITokenStore TokenStore
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ApiClient ApiClient
 
 <h3>Login</h3>
 
-<EditForm Model="model" OnValidSubmit="HandleValidSubmit">
+<EditForm Model="model" OnValidSubmit="HandleLogin">
 	<DataAnnotationsValidator />
 	<ValidationSummary />
 
@@ -39,74 +39,42 @@
 	private LoginModel model = new();
 	private bool isSubmitting;
 	private string? serverError;
-	private string? returnUrl;
+	private string? returnUrl;	
 
-	protected override void OnInitialized()
-	{
-		// read returnUrl query param if present
-		var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-		if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("returnUrl", out var vals))
-		{
-			returnUrl = vals.FirstOrDefault();
-		}
-	}
-
-	private async Task HandleValidSubmit()
+	private async Task HandleLogin()
 	{
 		isSubmitting = true;
 		serverError = null;
 
 		try
-		{
-			var client = HttpFactory.CreateClient("Api");
-			var response = await client.PostAsJsonAsync("api/auth/login", new { Email = model.Email, Password = model.Password });
-			if (response.IsSuccessStatusCode)
-			{
-				var payload = await response.Content.ReadFromJsonAsync<LoginResult>();
-				if (payload is not null && !string.IsNullOrEmpty(payload.Token))
-				{
-					// store both access and refresh tokens
-					await TokenStore.SetTokensAsync(payload.Token, payload.RefreshToken);
-					await AuthProvider.MarkUserAsAuthenticatedAsync(payload.Token);
-					Navigation.NavigateTo(returnUrl ?? "/");
-					return;
-				}
+		{			
+			var res = await ApiClient.PostAsync<LoginResponseModel, LoginModel>("/api/auth/login", model, skipAuth: true);
 
-				serverError = "Login succeeded but token was not returned.";
+			if (res != null && !string.IsNullOrEmpty(res.Token))
+			{
+				await ((CustomAuthStateProvider)AuthStateProvider).MarkUserAsAuthenticatedAsync(res);
+				Navigation.NavigateTo(returnUrl ?? "/", forceLoad: true);
 			}
 			else
 			{
-				// try to read error details
-				string text = string.Empty;
-				try { text = await response.Content.ReadAsStringAsync(); } catch { }
-				serverError = string.IsNullOrEmpty(text) ? "Invalid credentials." : text;
+				serverError = "Invalid email or password.";
 			}
 		}
-		catch (Exception ex)
-		{
-			serverError = ex.Message;
+		catch (Exception)
+		{			
+			serverError = "Login failed. Please check your credentials and try again.";
 		}
 		finally
 		{
 			isSubmitting = false;
 		}
-	}
-
-	private class LoginModel
+	}	
+	protected override void OnInitialized()
 	{
-		[Required]
-		[EmailAddress]
-		public string Email { get; set; } = string.Empty;
-
-		[Required]
-		[MinLength(6)]
-		public string Password { get; set; } = string.Empty;
-	}
-
-	private class LoginResult
-	{
-		public string Token { get; set; } = string.Empty;
-		public string RefreshToken { get; set; } = string.Empty;
-		public DateTimeOffset ExpiresAt { get; set; }
+		var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+		if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("returnUrl", out var url))
+		{
+			returnUrl = url;
+		}
 	}
 }

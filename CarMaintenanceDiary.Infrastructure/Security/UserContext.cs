@@ -34,15 +34,17 @@ namespace CarMaintenanceDiary.Infrastructure.Security
 
             if (!user.Identity?.IsAuthenticated ?? true)
             {
-                _logger?.LogWarning("User is not authenticated. Identity: {Identity}", user.Identity?.Name ?? "null");
+                _logger?.LogWarning("User is not authenticated. Identity: {Identity}, IsAuthenticated: {IsAuthenticated}", 
+                    user.Identity?.Name ?? "null", 
+                    user.Identity?.IsAuthenticated ?? false);
                 return null;
             }
-
-            // Try multiple claim types that might contain the user ID
+           
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
                       ?? user.FindFirst("sub")?.Value
+                      ?? user.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value
                       ?? user.FindFirst("userId")?.Value
-                      ?? user.FindFirst(ClaimTypes.Name)?.Value;
+                      ?? user.FindFirst("id")?.Value;
 
             if (string.IsNullOrEmpty(userId))
             {
@@ -51,7 +53,7 @@ namespace CarMaintenanceDiary.Infrastructure.Security
             }
             else
             {
-                _logger?.LogDebug("Found userId: {UserId}", userId);
+                _logger?.LogInformation("Found userId: {UserId} from authenticated user", userId);
             }
 
             return userId;
@@ -66,9 +68,21 @@ namespace CarMaintenanceDiary.Infrastructure.Security
                 return false;
             }
 
-            var isInRole = httpContext.User?.IsInRole(role) ?? false;
-            _logger?.LogDebug("IsInRole({Role}): {Result}. User: {User}", 
-                role, isInRole, httpContext.User?.Identity?.Name ?? "null");
+            var user = httpContext.User;
+            if (user == null || !(user.Identity?.IsAuthenticated ?? false))
+            {
+                _logger?.LogWarning("User is null or not authenticated when checking role");
+                return false;
+            }
+            
+            var isInRole = user.IsInRole(role) 
+                        || user.HasClaim(ClaimTypes.Role, role)
+                        || user.HasClaim("role", role)
+                        || user.HasClaim("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", role);
+
+            _logger?.LogInformation("IsInRole({Role}): {Result}. User: {User}, Claims: {Claims}", 
+                role, isInRole, user.Identity?.Name ?? "null",
+                string.Join(", ", user.Claims.Where(c => c.Type.Contains("role", StringComparison.OrdinalIgnoreCase)).Select(c => $"{c.Type}={c.Value}")));
             
             return isInRole;
         }

@@ -1,6 +1,8 @@
 ﻿using CarMaintenanceDiary.Core.Models;
 using CarMaintenanceDiary.Infrastructure.Data;
+using CarMaintenanceDiary.Infrastructure.Security;
 using CarMaintenanceDiary.Shared.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
@@ -9,24 +11,36 @@ using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.Processing;
-using Microsoft.AspNetCore.Authorization;
 
 namespace CarMaintenanceDiary.Api.Controllers
 {
-    [Route("api/[controller]")]    
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize]
     public class MaintenanceController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IUserContext _userContext;
         private readonly FileExtensionContentTypeProvider _contentProvider = new();
 
-        public MaintenanceController(ApplicationDbContext context)
+        public MaintenanceController(ApplicationDbContext context, IUserContext userContext)
         {
             _context = context;
+            _userContext = userContext;
         }
         
         [HttpGet("vehicle/{vehicleId}/records")]
         public async Task<ActionResult<List<MaintenanceRecordDto>>> GetRecordsForVehicle(int vehicleId)
         {
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == vehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
+
             var records = await _context.MaintenanceRecords
                 .Where(r => r.VehicleId == vehicleId)
                 .OrderByDescending(r => r.Date)
@@ -50,11 +64,21 @@ namespace CarMaintenanceDiary.Api.Controllers
         [HttpGet("records/{id}/documents")]
         public async Task<ActionResult<List<MaintenanceDocumentDto>>> GetDocumentIds(int id)
         {
-            var exists = await _context.MaintenanceRecords.AnyAsync(r => r.Id == id);
-            if (!exists)
+            var record = await _context.MaintenanceRecords.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id);
+            if (!await _context.MaintenanceRecords.AnyAsync(r => r.Id == id))
                 return NotFound();
 
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == record!.VehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
+
             var docs = await _context.MaintenanceDocuments
+                .AsNoTracking()
                 .Where(p => p.MaintenanceRecordId == id)
                 .Select(p => new MaintenanceDocumentDto
                 {
@@ -70,29 +94,50 @@ namespace CarMaintenanceDiary.Api.Controllers
         [HttpGet("records/{id}")]
         public async Task<ActionResult<MaintenanceRecordDto>> GetRecordById(int id)
         {
-            var r = await _context.MaintenanceRecords
-                .Where(x => x.Id == id)
-                .Select(x => new MaintenanceRecordDto
-                {
-                    Id = x.Id,
-                    VehicleId = x.VehicleId,
-                    Date = x.Date,
-                    Description = x.Description,
-                    Cost = x.Cost,
-                    Workshop = x.Workshop,
-                    MaintenanceType = x.MaintenanceType,
-                    PhotoPaths = x.Documents.Select(d => d.FileName).ToList()
-                })
-                .FirstOrDefaultAsync();
+            var recordEntity = await _context.MaintenanceRecords
+                .Include(x => x.Documents)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id);
 
-            if (r == null)
+            if (recordEntity == null)
                 return NotFound();
-            return Ok(r);
+
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == recordEntity.VehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
+
+            var dto = new MaintenanceRecordDto
+            {
+                Id = recordEntity.Id,
+                VehicleId = recordEntity.VehicleId,
+                Date = recordEntity.Date,
+                Description = recordEntity.Description,
+                Cost = recordEntity.Cost,
+                Workshop = recordEntity.Workshop,
+                MaintenanceType = recordEntity.MaintenanceType,
+                PhotoPaths = recordEntity.Documents.Select(d => d.FileName).ToList()
+            };
+
+            return Ok(dto);
         }
         
         [HttpPost("vehicle/{vehicleId}/records")]
         public async Task<IActionResult> AddRecord(int vehicleId, [FromBody] MaintenanceRecordDto dto)
         {
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == vehicleId);
+            if (vehicle == null)
+                return NotFound("Vehicle not found.");
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
+
             var record = new MaintenanceRecord
             {
                 VehicleId = vehicleId,
@@ -121,6 +166,15 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (record == null)
                 return NotFound();
 
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == record.VehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
+
             record.Date = dto.Date;
             record.Description = dto.Description;
             record.Cost = dto.Cost;
@@ -135,10 +189,19 @@ namespace CarMaintenanceDiary.Api.Controllers
         public async Task<IActionResult> DeleteRecord(int id)
         {
             var record = await _context.MaintenanceRecords
-                .Include(r => r.Documents)
-                .FirstOrDefaultAsync(r => r.Id == id);
+                 .Include(r => r.Documents)
+                 .FirstOrDefaultAsync(r => r.Id == id);
             if (record == null)
                 return NotFound();
+
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == record.VehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
 
             _context.MaintenanceDocuments.RemoveRange(record.Documents);
             _context.MaintenanceRecords.Remove(record);
@@ -149,11 +212,21 @@ namespace CarMaintenanceDiary.Api.Controllers
         [HttpPost("records/{id}/documents")]
         public async Task<IActionResult> UploadDocument(int id, IFormFile file)
         {
-            if (file == null || file.Length ==0)
+            if (file == null || file.Length == 0)
                 return BadRequest("No file uploaded.");
-            var record = await _context.MaintenanceRecords.FindAsync(id);
+
+            var record = await _context.MaintenanceRecords.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id);
             if (record == null)
                 return NotFound("Maintenance record not found.");
+
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == record.VehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
 
             await using var ms = new MemoryStream();
             await file.CopyToAsync(ms);
@@ -191,6 +264,19 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (doc == null)
                 return NotFound();
 
+            var record = await _context.MaintenanceRecords.AsNoTracking().FirstOrDefaultAsync(r => r.Id == doc.MaintenanceRecordId);
+            if (record == null)
+                return NotFound();
+
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == record.VehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
+
             var contentType = doc.ContentType ?? "application/octet-stream";
 
             var isImage = contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
@@ -225,7 +311,7 @@ namespace CarMaintenanceDiary.Api.Controllers
                 .GaussianSharpen(Math.Max(0f, sharpen))
             );
 
-            q = Math.Clamp(q,1,100);
+            q = Math.Clamp(q, 1, 100);
 
             var inferred = contentType.ToLowerInvariant() switch
             {
@@ -249,10 +335,10 @@ namespace CarMaintenanceDiary.Api.Controllers
                 _ => "image/webp"
             };
 
-            await using var ms = new MemoryStream();
-            await image.SaveAsync(ms, encoder);
+            await using var outMs = new MemoryStream();
+            await image.SaveAsync(outMs, encoder);
             Response.Headers.CacheControl = "public,max-age=31536000,immutable";
-            return File(ms.ToArray(), outContentType);
+            return File(outMs.ToArray(), outContentType);
         }
         
         [HttpGet("documents/{docId:int}/download")]
@@ -261,6 +347,19 @@ namespace CarMaintenanceDiary.Api.Controllers
             var doc = await _context.MaintenanceDocuments.AsNoTracking().FirstOrDefaultAsync(p => p.Id == docId);
             if (doc == null)
                 return NotFound();
+
+            var record = await _context.MaintenanceRecords.AsNoTracking().FirstOrDefaultAsync(r => r.Id == doc.MaintenanceRecordId);
+            if (record == null)
+                return NotFound();
+
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == record.VehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
 
             var contentType = doc.ContentType ?? "application/octet-stream";
             var fileName = string.IsNullOrWhiteSpace(doc.FileName) ? $"document_{docId}" : doc.FileName;
@@ -275,6 +374,19 @@ namespace CarMaintenanceDiary.Api.Controllers
             var doc = await _context.MaintenanceDocuments.FindAsync(docId);
             if (doc == null)
                 return NotFound();
+
+            var record = await _context.MaintenanceRecords.AsNoTracking().FirstOrDefaultAsync(r => r.Id == doc.MaintenanceRecordId);
+            if (record == null)
+                return NotFound();
+
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == record.VehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            var currentUserId = _userContext.GetCurrentUserId();
+            var isAdmin = _userContext.IsInRole("Admin");
+            if (!isAdmin && vehicle.UserId != currentUserId)
+                return Forbid();
 
             _context.MaintenanceDocuments.Remove(doc);
             await _context.SaveChangesAsync();
