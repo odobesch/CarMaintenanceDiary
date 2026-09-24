@@ -2,10 +2,8 @@
 @using CarMaintenanceDiary.Web.Authentication
 @rendermode InteractiveServer
 @inject CustomAuthStateProvider AuthProvider
-@inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @inject ILogger<Logout> Logger
-@inject IJSRuntime JS
 
 <PageTitle>Log Out</PageTitle>
 
@@ -20,23 +18,22 @@
     protected override async Task OnInitializedAsync()
     {
         try
-        {            
+        {
             await AuthProvider.MarkUserAsLoggedOutAsync();
-            
-            Navigation.NavigateTo("/auth/login", replace: true, forceLoad: true);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Logout failed; redirecting to login anyway.");
-            Navigation.NavigateTo("/auth/login", replace: true, forceLoad: true);
         }
-    }    
 
-    private void NavigateHome()
+        NavigateToLogin();
+    }
+
+    private void NavigateToLogin()
     {
         if (_navigated)
             return;
         _navigated = true;
-        Navigation.NavigateTo("/", replace: true, forceLoad: true);
+        Navigation.NavigateTo("/auth/login", replace: true, forceLoad: true);
     }
 }
