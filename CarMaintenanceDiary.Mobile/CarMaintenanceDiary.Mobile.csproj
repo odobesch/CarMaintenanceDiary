@@ -44,15 +44,20 @@
     <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\CarMaintenanceDiary.Application\CarMaintenanceDiary.Application.csproj" />
+    <ProjectReference Include="..\CarMaintenanceDiary.Core\CarMaintenanceDiary.Core.csproj" />
+    <ProjectReference Include="..\CarMaintenanceDiary.Shared\CarMaintenanceDiary.Shared.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="CommunityToolkit.Maui" Version="9.0.0" />
     <PackageReference Include="CommunityToolkit.Maui.Markup" Version="5.0.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="FluentValidation" Version="12.1.0" />
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.10" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.12" />
     <PackageReference Include="Microsoft.Maui.Controls.Maps" Version="10.0.10" />
     <PackageReference Include="Plugin.Maui.OCR" Version="1.0.15" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
   </ItemGroup>
   <ItemGroup>
     <MauiXaml Update="Views\FuelDetailPage.xaml">
