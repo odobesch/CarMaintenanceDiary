@@ -1,0 +1,24 @@
+/* Sidebar image-only header: hide title/badge and make image cover the header area */
+.sidebar-image-only .sidebar-header,
+.sidebar-image-only .sidebar-header * {
+    margin: 0;
+    padding: 0;
+}
+
+/* Hide title and badge if they are rendered as elements inside the header */
+.sidebar-image-only .sidebar-header .sidebar-title,
+.sidebar-image-only .sidebar-header .badge,
+.sidebar-image-only .sidebar-header .title,
+.sidebar-image-only .sidebar-header .bb-sidebar2-title {
+    display: none !important;
+}
+
+/* Make the image occupy the header fully */
+.sidebar-image-only .sidebar-header img,
+.sidebar-image-only .sidebar-header .bb-sidebar2-image,
+.sidebar-image-only img {
+    width: 100% !important;
+    height: 140px; /* adjust height to taste */
+    display: block;
+    object-fit: cover;
+}

@@ -19,6 +19,10 @@ main {
     height: 3.5rem;
     display: flex;
     align-items: center;
+    /* ensure header is above global overlays */
+    position: sticky;
+    top: 0;
+    z-index: 10001;
 }
 
     .top-row ::deep a, .top-row ::deep .btn-link {
@@ -58,10 +62,12 @@ main {
         top: 0;
     }
 
+    /* keep header on top on wide screens too */
     .top-row {
+        /* position and z-index retained above */
         position: sticky;
         top: 0;
-        z-index: 1;
+        z-index: 10001;
     }
 
     .top-row.auth ::deep a:first-child {

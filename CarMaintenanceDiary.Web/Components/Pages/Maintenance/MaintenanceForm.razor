@@ -1,0 +1,59 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using CarMaintenanceDiary.Shared.DTOs
+@using Radzen
+@using Radzen.Blazor
+
+<EditForm Model="Model" OnValidSubmit="OnValidSubmit" id="@FormId">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-2">
+        <label>Date <span class="text-danger">*</span></label>
+        <RadzenDatePicker @bind-Value="Model.Date"
+                          DateFormat="dd.MM.yyyy"
+                          Style="width: 100%;"
+                          AllowClear="true"
+                          ShowButton="false"
+                          Culture="@(new System.Globalization.CultureInfo("cs-CZ"))" />
+        <ValidationMessage For="@(() => Model.Date)" />
+    </div>
+
+    <div class="mb-2">
+        <label>Maintenance Type</label>
+        <InputText class="form-control" @bind-Value="Model.MaintenanceType" />
+        <ValidationMessage For="@(() => Model.MaintenanceType)" />
+    </div>
+
+    <div class="mb-2">
+        <label>Description</label>
+        <InputTextArea class="form-control" @bind-Value="Model.Description" Rows="3" />
+        <ValidationMessage For="@(() => Model.Description)" />
+    </div>
+
+    <div class="mb-2">
+        <label>Workshop</label>
+        <InputText class="form-control" @bind-Value="Model.Workshop" />
+        <ValidationMessage For="@(() => Model.Workshop)" />
+    </div>
+
+    <div class="mb-2">
+        <label>Cost</label>
+        <InputNumber class="form-control" @bind-Value="Model.Cost" Min="0" />
+        <ValidationMessage For="@(() => Model.Cost)" />
+    </div>
+</EditForm>
+
+@code {
+    [Parameter, EditorRequired] public MaintenanceRecordDto Model { get; set; } = default!;
+    [Parameter]
+    public bool IsEditMode
+    {
+        get; set;
+    }
+    [Parameter] public string FormId { get; set; } = "maintenance-form";
+    [Parameter]
+    public EventCallback OnValidSubmit
+    {
+        get; set;
+    }
+}

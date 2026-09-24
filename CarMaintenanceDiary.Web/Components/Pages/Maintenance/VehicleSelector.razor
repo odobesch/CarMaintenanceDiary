@@ -1,0 +1,30 @@
+﻿@using CarMaintenanceDiary.Shared.DTOs
+
+<InputSelect @bind-Value="Value" class="@($"form-select {(Class ?? string.Empty)}")">
+    @if (Vehicles is not null)
+    {
+        @foreach (var v in Vehicles)
+        {
+            <option value="@v.Id">@v.Make @v.Model (@v.LicensePlate)</option>
+        }
+    }
+</InputSelect>
+
+@code {
+    [Parameter] public List<VehicleDto> Vehicles { get; set; } = new();
+    [Parameter]
+    public int? Value
+    {
+        get; set;
+    }
+    [Parameter]
+    public EventCallback<int?> ValueChanged
+    {
+        get; set;
+    }
+    [Parameter]
+    public string? Class
+    {
+        get; set;
+    }
+}

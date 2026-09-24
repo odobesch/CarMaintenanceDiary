@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="Properties\launchSettings.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CarMaintenanceDiary.Application\CarMaintenanceDiary.Application.csproj" />
+    <ProjectReference Include="..\CarMaintenanceDiary.Infrastructure\CarMaintenanceDiary.Infrastructure.csproj" />
+    <ProjectReference Include="..\CarMaintenanceDiary.Model\CarMaintenanceDiary.Model.csproj" />
+    <ProjectReference Include="..\CarMaintenanceDiary.Shared\CarMaintenanceDiary.Shared.csproj" />
+    <ProjectReference Include="..\CarMaintenanceDiary.Web\CarMaintenanceDiary.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Properties\launchSettings.json" />
+  </ItemGroup>
+
+</Project>

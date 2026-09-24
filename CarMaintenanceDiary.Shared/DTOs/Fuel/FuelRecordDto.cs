@@ -23,5 +23,6 @@ namespace CarMaintenanceDiary.Shared.DTOs.Fuel
         public decimal PricePerLiter { get; set; }
         public string FuelStation { get; set; } = string.Empty;
         public bool FullTank { get; set; }
+        public List<int> PhotoIds { get; set; } = new();
     }
 }

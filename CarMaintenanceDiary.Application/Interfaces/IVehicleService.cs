@@ -15,13 +15,11 @@ namespace CarMaintenanceDiary.Application.Interfaces
         Task<int> AddAsync(VehicleDto vehicle);
         Task UpdateAsync(VehicleDto vehicle);
         Task DeleteAsync(int id);
-
-        Task<List<FuelRecordDto>> GetFuelRecordsAsync(int vehicleId);
-        Task AddFuelRecordAsync(int vehicleId, FuelRecordDto fuelRecord);
-        Task UpdateFuelRecordAsync(FuelRecordDto record);
-        Task DeleteFuelRecordAsync(int fuelRecordId);
-
-        Task<List<MonthlyFuelSummaryDto>> GetMonthlyFuelSummariesAsync(int vehicleId);
-        Task<List<YearlyFuelSummaryDto>> GetYearlyFuelSummariesAsync(int vehicleId);
+        Task<bool> LicensePlateExistsAsync(string licensePlate);
+        Task<int?> UploadPhotoAsync(int vehicleId, Stream fileStream, string fileName, string? contentType = null);
+        Task DeletePhotoAsync(int photoId);
+        string GetPhotoUrl(int photoId);
+        Task<List<int>> GetPhotoIdsAsync(int vehicleId);
+        string GetPhotoUrl(int photoId, int w, int h, string mode = "crop", int dpr = 1, string? format = null, int? q = null);
     }
 }

@@ -1,0 +1,19 @@
+@using CarMaintenanceDiary.Web.Authentication
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject CustomAuthStateProvider AuthProvider
+@inject NavigationManager Navigation
+@inject IHttpClientFactory HttpFactory
+@inject ILogger<LoginDisplay> Logger
+
+<AuthorizeView>
+	<Authorized>
+		Hello, @context.User.Identity?.Name!
+		<a href="/auth/logout" class="btn btn-link">Logout</a>
+	</Authorized>
+	<NotAuthorized>
+		<a href="/auth/login">Login</a>
+		<span> | </span>
+		<a href="/auth/register">Register</a>
+	</NotAuthorized>
+</AuthorizeView>

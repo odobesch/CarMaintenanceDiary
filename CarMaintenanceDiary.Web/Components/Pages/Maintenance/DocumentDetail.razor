@@ -1,0 +1,23 @@
+﻿@if (!string.IsNullOrEmpty(SelectedDocumentUrl))
+{
+    @if (SelectedDocumentUrl!.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+    {
+        <iframe src="@SelectedDocumentUrl" width="100%" height="600px"></iframe>
+    }
+    else
+    {
+        <img src="@SelectedDocumentUrl" class="img-fluid" />
+    }
+}
+else
+{
+    <div>Loading...</div>
+}
+
+@code {
+    [Parameter]
+    public string? SelectedDocumentUrl
+    {
+        get; set;
+    }
+}

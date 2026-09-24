@@ -1,0 +1,107 @@
+@page "/maintenance"
+@using CarMaintenanceDiary.Application.Interfaces
+@using CarMaintenanceDiary.Shared.DTOs
+@using Microsoft.AspNetCore.Components.Forms
+@namespace CarMaintenanceDiary.Web.Components.Pages.Maintenance
+
+<h3>Maintenance</h3>
+
+@if (IsLoading)
+{
+    <div class="loading-overlay">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (Vehicles.Count == 0)
+{
+    <div class="alert alert-warning" role="alert">
+        <strong>No vehicles found!</strong> Please add a vehicle first.
+    </div>
+}
+else
+{
+    <VehicleSelector Vehicles="Vehicles"
+                     @bind-Value="SelectedVehicleId"
+                     Class="mb-3" />
+
+    @if (SelectedVehicle is not null)
+    {
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <h4 class="mb-0">Maintenance for @SelectedVehicle.Make @SelectedVehicle.Model (@SelectedVehicle.LicensePlate)</h4>
+            <button class="btn btn-success" @onclick="OpenAddMaintenanceModal">Add Maintenance</button>
+        </div>
+
+        <MaintenanceGrid Items="MaintenanceRecords"
+                          OnOpenDocuments="OpenDocuments"
+                          OnEdit="EditMaintenanceRecord"
+                          OnDelete="DeleteMaintenanceRecord" />
+    }
+}
+
+<!-- Maintenance Form Modal -->
+<Modal @ref="maintenanceModal"
+       Title="@(IsEditMode ? "Edit Maintenance" : "Add Maintenance")"
+       OnHidden="OnMaintenanceModalHidden">
+    <BodyTemplate>
+        <MaintenanceForm Model="EditingModel"
+                         IsEditMode="IsEditMode"
+                         FormId="maintenance-form"
+                         OnValidSubmit="SaveMaintenanceRecord" />
+    </BodyTemplate>
+    <FooterTemplate>
+        <Button Color="ButtonColor.Secondary" @onclick="CloseMaintenanceModal">Close</Button>
+        <button type="submit" class="btn btn-primary" form="maintenance-form">
+            @(IsSaving ? "Saving..." : (IsEditMode ? "Save Changes" : "Add"))
+            @if (IsSaving)
+            {
+                <span class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true"></span>
+            }
+        </button>
+    </FooterTemplate>
+</Modal>
+
+<!-- Documents Modal -->
+<Modal @ref="documentsModal"
+       Title="Documents"
+       Class="documents-modal"
+       Keyboard="false"
+       Backdrop="ModalBackdrop.Static"
+       OnHidden="OnDocumentsModalHidden">
+    <BodyTemplate>
+        <DocumentsModalBody Documents="DocumentsForRecord"
+                            OnUpload="UploadDocumentFiles"
+                            OnOpenNewTab="OpenDocInNewTab"
+                            OnShowDetail="ShowDocumentDetail"
+                            OnDownload="DownloadDocument"
+                            OnDelete="DeleteDocument"
+                            GetPreviewUrl="DocumentPreviewUrl"
+                            GetIconClass="GetIconClassForContentType" />
+    </BodyTemplate>
+    <FooterTemplate>
+        <Button Color="ButtonColor.Secondary" @onclick="CloseDocumentsModal">Close</Button>
+    </FooterTemplate>
+</Modal>
+
+<!-- Document Detail Modal -->
+<Modal @ref="documentDetailModal"
+       Title="Document Detail"
+       Class="doc-detail-modal"
+       Keyboard="true"
+       Backdrop="ModalBackdrop.True"
+       OnHidden="OnDocumentDetailHidden">
+    <BodyTemplate>
+        <DocumentDetail SelectedDocumentUrl="SelectedDocumentUrl" />
+    </BodyTemplate>
+    <FooterTemplate>
+        @if (!string.IsNullOrEmpty(SelectedDocumentUrl))
+        {
+            <a class="btn btn-link" href="@SelectedDocumentUrl" target="_blank" rel="noopener">Open in new tab</a>
+            <button class="btn btn-sm btn-secondary ms-2" @onclick="DownloadSelectedDocument">Download</button>
+        }
+        <Button Color="ButtonColor.Secondary" @onclick="CloseDocumentDetailModal">Close</Button>
+    </FooterTemplate>
+</Modal>
+
+<ConfirmDialog @ref="confirmDialog" />

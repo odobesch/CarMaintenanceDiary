@@ -1,0 +1,105 @@
+@page "/auth/register"
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.WebUtilities
+@inject IHttpClientFactory HttpFactory
+@inject NavigationManager Navigation
+
+<h3>Register</h3>
+
+<EditForm Model="model" OnValidSubmit="HandleValidSubmit">
+	<DataAnnotationsValidator />
+	<ValidationSummary />
+
+	<div class="mb-3">
+		<label class="form-label">Email</label>
+		<InputText class="form-control" @bind-Value="model.Email" />
+		<ValidationMessage For="() => model.Email" />
+	</div>
+
+	<div class="mb-3">
+		<label class="form-label">Password</label>
+		<InputText class="form-control" type="password" @bind-Value="model.Password" />
+		<ValidationMessage For="() => model.Password" />
+	</div>
+
+	<div class="mb-3">
+		<label class="form-label">Confirm password</label>
+		<InputText class="form-control" type="password" @bind-Value="model.ConfirmPassword" />
+		<ValidationMessage For="() => model.ConfirmPassword" />
+	</div>
+
+	@if (!string.IsNullOrEmpty(serverError))
+	{
+		<div class="alert alert-danger">@serverError</div>
+	}
+
+	<button class="btn btn-primary" type="submit" disabled="@isSubmitting">
+		@(isSubmitting ? "Registering..." : "Register")
+	</button>
+</EditForm>
+
+@code {
+	private RegisterModel model = new();
+	private bool isSubmitting;
+	private string? serverError;
+
+	private async Task HandleValidSubmit()
+	{
+		if (model.Password != model.ConfirmPassword)
+		{
+			serverError = "Passwords do not match.";
+			return;
+		}
+
+		isSubmitting = true;
+		serverError = null;
+		try
+		{
+			var client = HttpFactory.CreateClient("Api");
+			var response = await client.PostAsJsonAsync("api/auth/register", new
+			{
+				Email = model.Email,
+				Password = model.Password
+			});
+			if (response.IsSuccessStatusCode)
+			{
+				// navigate to login and optionally show success flag
+				Navigation.NavigateTo($"/auth/login?registered=true");
+				return;
+			}
+			else
+			{
+				string text = string.Empty;
+				try
+				{
+					text = await response.Content.ReadAsStringAsync();
+				}
+				catch { }
+				serverError = string.IsNullOrEmpty(text) ? "Registration failed." : text;
+			}
+		}
+		catch (Exception ex)
+		{
+			serverError = ex.Message;
+		}
+		finally
+		{
+			isSubmitting = false;
+		}
+	}
+
+	private class RegisterModel
+	{
+		[Required]
+		[EmailAddress]
+		public string Email { get; set; } = string.Empty;
+
+		[Required]
+		[MinLength(6)]
+		public string Password { get; set; } = string.Empty;
+
+		[Required]
+		[MinLength(6)]
+		public string ConfirmPassword { get; set; } = string.Empty;
+	}
+}

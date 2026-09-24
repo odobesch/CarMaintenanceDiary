@@ -1,0 +1,211 @@
+﻿@page "/account/confirm"
+@using System.ComponentModel.DataAnnotations
+@using System.Text.Json
+@inject IHttpClientFactory HttpFactory
+@inject NavigationManager Navigation
+@inject ToastService ToastService
+
+<PageTitle>Confirm account</PageTitle>
+
+<h3>Account confirmation</h3>
+
+@if (isLoading)
+{
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+}
+else if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-danger">@error</div>
+}
+else
+{
+    @if (!confirmed)
+    {
+        <div class="alert alert-warning">
+            Confirming your email...
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-success">Email confirmed — please set your password.</div>
+
+        <EditForm Model="model" OnValidSubmit="SetPassword">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label class="form-label">New password</label>
+                <InputText type="password" class="form-control" @bind-Value="model.NewPassword" />
+                <ValidationMessage For="@(() => model.NewPassword)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Confirm password</label>
+                <InputText type="password" class="form-control" @bind-Value="model.ConfirmPassword" />
+                <ValidationMessage For="@(() => model.ConfirmPassword)" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(setPasswordError))
+            {
+                <div class="alert alert-danger">@setPasswordError</div>
+            }
+
+            <button class="btn btn-primary" type="submit" disabled="@isSubmitting">
+                @(isSubmitting ? "Saving..." : "Set password")
+            </button>
+        </EditForm>
+    }
+}
+
+@code {
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private bool confirmed;
+    private string? error;
+    private string? setPasswordError;
+
+    // tokens from query
+    private string? userId;
+    private string? emailToken;
+    private string? resetToken;
+
+    private SetPasswordModel model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var qp = System.Web.HttpUtility.ParseQueryString(uri.Query);
+
+        userId = qp["userId"];
+        emailToken = qp["token"];
+        resetToken = qp["resetToken"] ?? qp["resettoken"]; // accept different casing
+
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(emailToken))
+        {
+            error = "Invalid confirmation link (missing parameters).";
+            isLoading = false;
+            return;
+        }
+
+        try
+        {
+            var client = HttpFactory.CreateClient("Api");
+            // tokens are expected to be Base64Url encoded already, pass as-is (URL safe)
+            var url = $"api/usermanagement/confirm-email?userId={Uri.EscapeDataString(userId)}&token={Uri.EscapeDataString(emailToken)}";
+            var resp = await client.GetAsync(url);
+
+            if (resp.IsSuccessStatusCode)
+            {
+                confirmed = true;
+                ToastService.Notify(new ToastMessage(ToastType.Success, "Email confirmed. Please set your password."));
+            }
+            else
+            {
+                var text = await resp.Content.ReadAsStringAsync();
+                // try parse json message
+                try
+                {
+                    using var doc = JsonDocument.Parse(text);
+                    if (doc.RootElement.TryGetProperty("message", out var m) || doc.RootElement.TryGetProperty("Message", out m))
+                        error = m.GetString();
+                    else
+                        error = text;
+                }
+                catch
+                {
+                    error = string.IsNullOrEmpty(text) ? "Failed to confirm email." : text;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SetPassword()
+    {
+        setPasswordError = null;
+
+        if (model.NewPassword != model.ConfirmPassword)
+        {
+            setPasswordError = "Passwords do not match.";
+            return;
+        }
+
+        if (string.IsNullOrEmpty(resetToken))
+        {
+            setPasswordError = "Password token is missing from the confirmation link. Contact support.";
+            return;
+        }
+
+        isSubmitting = true;
+        try
+        {
+            var client = HttpFactory.CreateClient("Api");
+            var payload = new
+            {
+                UserId = userId,
+                Token = resetToken,
+                NewPassword = model.NewPassword
+            };
+
+            var resp = await client.PostAsJsonAsync($"api/usermanagement/{Uri.EscapeDataString(userId)}/set-password", payload);
+            if (resp.IsSuccessStatusCode)
+            {
+                ToastService.Notify(new ToastMessage(ToastType.Success, "Password set. You can now log in."));
+                Navigation.NavigateTo("/auth/login");
+            }
+            else
+            {
+                var text = await resp.Content.ReadAsStringAsync();
+                try
+                {
+                    using var doc = JsonDocument.Parse(text);
+                    if (doc.RootElement.TryGetProperty("errors", out var errs) && errs.ValueKind == JsonValueKind.Array)
+                    {
+                        var sb = new System.Text.StringBuilder();
+                        foreach (var e in errs.EnumerateArray())
+                        {
+                            sb.AppendLine(e.GetProperty("description").GetString());
+                        }
+                        setPasswordError = sb.ToString();
+                    }
+                    else
+                    {
+                        setPasswordError = text;
+                    }
+                }
+                catch
+                {
+                    setPasswordError = string.IsNullOrEmpty(text) ? "Failed to set password." : text;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            setPasswordError = ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private class SetPasswordModel
+    {
+        [Required]
+        [MinLength(8, ErrorMessage = "Password must be at least 8 characters.")]
+        public string NewPassword { get; set; } = string.Empty;
+
+        [Required]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

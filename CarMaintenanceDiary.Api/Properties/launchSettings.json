@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "CarMaintenanceDiary.Api": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "useDevTunnel": true,
+      "applicationUrl": "https://localhost:7260",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
