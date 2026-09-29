@@ -42,13 +42,16 @@ else
 
     private int searchRadiusKm = 5;
     
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadMap(); // 🔄 Automatically trigger map loading
-    }
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            // JS interop (and thus geolocation) is not available during static prerendering,
+            // so the initial auto-load must happen here instead of OnInitializedAsync.
+            await LoadMap();
+            return;
+        }
+
         // ✅ Only run JS after the div is definitely in the DOM
         if (shouldInitMap && userLocation is not null && stations.Any())
         {

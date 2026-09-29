@@ -4,6 +4,7 @@ using CarMaintenanceDiary.Application.Services;
 using CarMaintenanceDiary.Infrastructure.Data;
 using CarMaintenanceDiary.Infrastructure.Email;
 using CarMaintenanceDiary.Infrastructure.Identity;
+using CarMaintenanceDiary.Infrastructure.Media;
 using CarMaintenanceDiary.Infrastructure.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -26,12 +27,16 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContext, UserContext>();
+builder.Services.AddSingleton<IImageProcessingService, ImageProcessingService>();
+
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? Array.Empty<string>();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("Default", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
@@ -78,28 +83,18 @@ builder.Services.AddAuthentication(options =>
     {
         OnAuthenticationFailed = context =>
         {
-            Console.WriteLine($"[JWT] Authentication failed: {context.Exception.Message}");
-            Console.WriteLine($"[JWT] Exception type: {context.Exception.GetType().Name}");
-            if (context.Exception.InnerException != null)
-            {
-                Console.WriteLine($"[JWT] Inner exception: {context.Exception.InnerException.Message}");
-            }
-            return Task.CompletedTask;
-        },
-        OnTokenValidated = context =>
-        {
-            Console.WriteLine($"[JWT] Token validated successfully for: {context.Principal?.Identity?.Name}");
-            return Task.CompletedTask;
-        },
-        OnMessageReceived = context =>
-        {
-            var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
-            Console.WriteLine($"[JWT] Message received, Authorization header: {(string.IsNullOrEmpty(authHeader) ? "MISSING" : authHeader.Substring(0, Math.Min(50, authHeader.Length)) + "...")}");
+            var logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("JwtBearer");
+            logger.LogWarning(context.Exception, "JWT authentication failed.");
             return Task.CompletedTask;
         },
         OnChallenge = context =>
         {
-            Console.WriteLine($"[JWT] Challenge issued. Error: {context.Error}, ErrorDescription: {context.ErrorDescription}");
+            var logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("JwtBearer");
+            logger.LogInformation("JWT challenge issued. Error: {Error}", context.Error);
             return Task.CompletedTask;
         }
     };
@@ -117,6 +112,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+app.UseCors("Default");
 app.MapControllers();
 app.Run();

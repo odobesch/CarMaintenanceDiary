@@ -8,5 +8,10 @@ namespace CarMaintenanceDiary.Infrastructure.Security
     {
         string? GetCurrentUserId();
         bool IsInRole(string role);
+
+        /// <summary>
+        /// Returns true if the current user is an Admin or owns the resource identified by <paramref name="resourceOwnerUserId"/>.
+        /// </summary>
+        bool CanAccessOwnedResource(string? resourceOwnerUserId);
     }
 }

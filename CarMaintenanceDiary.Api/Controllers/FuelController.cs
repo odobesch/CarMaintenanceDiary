@@ -4,12 +4,8 @@ using CarMaintenanceDiary.Infrastructure.Data;
 using CarMaintenanceDiary.Shared.DTOs.Fuel;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Formats.Webp;
-using SixLabors.ImageSharp.Processing;
 using Microsoft.AspNetCore.Authorization;
+using CarMaintenanceDiary.Infrastructure.Media;
 using CarMaintenanceDiary.Infrastructure.Security;
 
 namespace CarMaintenanceDiary.Api.Controllers
@@ -21,11 +17,13 @@ namespace CarMaintenanceDiary.Api.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IUserContext _userContext;
+        private readonly IImageProcessingService _imageProcessingService;
 
-        public FuelController(ApplicationDbContext context, IUserContext userContext)
+        public FuelController(ApplicationDbContext context, IUserContext userContext, IImageProcessingService imageProcessingService)
         {
             _context = context;
             _userContext = userContext;
+            _imageProcessingService = imageProcessingService;
         }
 
         [HttpGet("{vehicleId}")]
@@ -35,9 +33,7 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (vehicle == null)
                 return NotFound();
 
-            var currentUserId = _userContext.GetCurrentUserId();
-            var isAdmin = _userContext.IsInRole("Admin");
-            if (!isAdmin && vehicle.UserId != currentUserId)
+            if (!_userContext.CanAccessOwnedResource(vehicle.UserId))
                 return Forbid();
 
             var records = await _context.FuelEntries
@@ -75,9 +71,7 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (vehicle == null)
                 return NotFound();
 
-            var currentUserId = _userContext.GetCurrentUserId();
-            var isAdmin = _userContext.IsInRole("Admin");
-            if (!isAdmin && vehicle.UserId != currentUserId)
+            if (!_userContext.CanAccessOwnedResource(vehicle.UserId))
                 return Forbid();
 
             var record = new FuelRecordDto
@@ -103,9 +97,7 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (vehicle == null)
                 return NotFound("Vehicle not found.");
 
-            var currentUserId = _userContext.GetCurrentUserId();
-            var isAdmin = _userContext.IsInRole("Admin");
-            if (!isAdmin && vehicle.UserId != currentUserId)
+            if (!_userContext.CanAccessOwnedResource(vehicle.UserId))
                 return Forbid();
 
             var entry = new FuelRecord
@@ -138,9 +130,7 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (vehicle == null)
                 return NotFound();
 
-            var currentUserId = _userContext.GetCurrentUserId();
-            var isAdmin = _userContext.IsInRole("Admin");
-            if (!isAdmin && vehicle.UserId != currentUserId)
+            if (!_userContext.CanAccessOwnedResource(vehicle.UserId))
                 return Forbid();
 
             record.Date = dto.Date;
@@ -165,9 +155,7 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (vehicle == null)
                 return NotFound();
 
-            var currentUserId = _userContext.GetCurrentUserId();
-            var isAdmin = _userContext.IsInRole("Admin");
-            if (!isAdmin && vehicle.UserId != currentUserId)
+            if (!_userContext.CanAccessOwnedResource(vehicle.UserId))
                 return Forbid();
 
             _context.FuelEntries.Remove(record);
@@ -182,9 +170,7 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (vehicle == null)
                 return NotFound();
 
-            var currentUserId = _userContext.GetCurrentUserId();
-            var isAdmin = _userContext.IsInRole("Admin");
-            if (!isAdmin && vehicle.UserId != currentUserId)
+            if (!_userContext.CanAccessOwnedResource(vehicle.UserId))
                 return Forbid();
 
             var records = await _context.FuelEntries
@@ -221,9 +207,7 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (vehicle == null)
                 return NotFound();
 
-            var currentUserId = _userContext.GetCurrentUserId();
-            var isAdmin = _userContext.IsInRole("Admin");
-            if (!isAdmin && vehicle.UserId != currentUserId)
+            if (!_userContext.CanAccessOwnedResource(vehicle.UserId))
                 return Forbid();
 
             var records = await _context.FuelEntries
@@ -266,9 +250,7 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (vehicle == null)
                 return NotFound();
 
-            var currentUserId = _userContext.GetCurrentUserId();
-            var isAdmin = _userContext.IsInRole("Admin");
-            if (!isAdmin && vehicle.UserId != currentUserId)
+            if (!_userContext.CanAccessOwnedResource(vehicle.UserId))
                 return Forbid();
 
             await using var ms = new MemoryStream();
@@ -311,68 +293,13 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (photo == null)
                 return NotFound();
 
-            // Fast path: original bytes
-            if (w is null || h is null)
-            {
-                Response.Headers.CacheControl = "public,max-age=31536000,immutable";
-                return File(photo.Data, photo.ContentType ?? "application/octet-stream");
-            }
+            var (data, contentType) = await _imageProcessingService.ProcessAsync(
+                photo.Data,
+                photo.ContentType,
+                new ImageProcessingOptions { Width = w, Height = h, Mode = mode, Dpr = dpr, Format = format, Quality = q, Sharpen = sharpen });
 
-            // Resize + sharpen (use Image.Load(photo.Data) as requested)
-            using var image = Image.Load(photo.Data);
-
-            dpr = Math.Max(1, dpr);
-            var target = new SixLabors.ImageSharp.Size(
-                Math.Max(1, w.Value * dpr),
-                Math.Max(1, h.Value * dpr)
-            );
-
-            var resizeMode = mode?.ToLowerInvariant() switch
-            {
-                "pad" => ResizeMode.Pad,
-                "max" => ResizeMode.Max,
-                _ => ResizeMode.Crop
-            };
-
-            image.Mutate(x => x
-                .Resize(new ResizeOptions
-                {
-                    Size = target,
-                    Mode = resizeMode,
-                    Sampler = KnownResamplers.Lanczos3
-                })
-                .GaussianSharpen(Math.Max(0f, sharpen))
-            );
-
-            q = Math.Clamp(q, 1, 100);
-
-            // Choose output (prefer explicit format, else infer from stored ContentType, else webp)
-            var inferred = photo.ContentType?.ToLowerInvariant() switch
-            {
-                "image/jpeg" or "image/jpg" => "jpeg",
-                "image/png" => "png",
-                "image/webp" => "webp",
-                _ => null
-            };
-            var chosen = (format ?? inferred ?? "webp").ToLowerInvariant();
-
-            var encoder = chosen switch
-            {
-                "jpeg" or "jpg" => (SixLabors.ImageSharp.Formats.IImageEncoder)new JpegEncoder { Quality = q },
-                "png" => new PngEncoder(),
-                _ => new WebpEncoder { Quality = q }
-            };
-            var contentType = chosen switch
-            {
-                "jpeg" or "jpg" => "image/jpeg",
-                "png" => "image/png",
-                _ => "image/webp"
-            };
-
-            using var ms = new MemoryStream();
-            await image.SaveAsync(ms, encoder);
             Response.Headers.CacheControl = "public,max-age=31536000,immutable";
-            return File(ms.ToArray(), contentType); // return bytes (avoids disposed stream issue)
+            return File(data, contentType);
         }
 
         [HttpDelete("photos/{photoId}")]
@@ -390,9 +317,7 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (vehicle == null)
                 return NotFound();
 
-            var currentUserId = _userContext.GetCurrentUserId();
-            var isAdmin = _userContext.IsInRole("Admin");
-            if (!isAdmin && vehicle.UserId != currentUserId)
+            if (!_userContext.CanAccessOwnedResource(vehicle.UserId))
                 return Forbid();
 
             _context.FuelPhotos.Remove(photo);
