@@ -86,5 +86,14 @@ namespace CarMaintenanceDiary.Infrastructure.Security
             
             return isInRole;
         }
+
+        public bool CanAccessOwnedResource(string? resourceOwnerUserId)
+        {
+            if (IsInRole("Admin"))
+                return true;
+
+            var currentUserId = GetCurrentUserId();
+            return !string.IsNullOrEmpty(currentUserId) && currentUserId == resourceOwnerUserId;
+        }
     }
 }

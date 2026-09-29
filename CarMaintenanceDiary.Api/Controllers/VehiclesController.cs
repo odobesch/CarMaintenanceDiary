@@ -1,17 +1,12 @@
 ﻿using CarMaintenanceDiary.Application.Interfaces;
 using CarMaintenanceDiary.Core.Models;
 using CarMaintenanceDiary.Infrastructure.Data;
+using CarMaintenanceDiary.Infrastructure.Media;
 using CarMaintenanceDiary.Infrastructure.Security;
 using CarMaintenanceDiary.Shared.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Formats.Webp;
-using SixLabors.ImageSharp.Processing;
 
 namespace CarMaintenanceDiary.Api.Controllers
 {
@@ -22,11 +17,13 @@ namespace CarMaintenanceDiary.Api.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IUserContext _userContext;
+        private readonly IImageProcessingService _imageProcessingService;
 
-        public VehiclesController(ApplicationDbContext context, IUserContext userContext)
+        public VehiclesController(ApplicationDbContext context, IUserContext userContext, IImageProcessingService imageProcessingService)
         {
             _context = context;
             _userContext = userContext;
+            _imageProcessingService = imageProcessingService;
         }
 
         [HttpGet("getall")]
@@ -65,6 +62,9 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (v == null)
                 return NotFound();
 
+            if (!_userContext.CanAccessOwnedResource(v.UserId))
+                return Forbid();
+
             return new VehicleDto
             {
                 Id = v.Id,
@@ -79,13 +79,18 @@ namespace CarMaintenanceDiary.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<int>> Add([FromBody] VehicleDto dto)
         {
+            var currentUserId = _userContext.GetCurrentUserId();
+            if (string.IsNullOrEmpty(currentUserId))
+                return Unauthorized();
+
             var entity = new Vehicle
             {
                 Make = dto.Make,
                 Model = dto.Model,
                 Year = dto.Year,
                 LicensePlate = dto.LicensePlate.ToUpper(),
-                VIN = dto.VIN
+                VIN = dto.VIN,
+                UserId = currentUserId
             };
 
             _context.Vehicles.Add(entity);
@@ -109,6 +114,9 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (entity == null)
                 return NotFound();            
 
+            if (!_userContext.CanAccessOwnedResource(entity.UserId))
+                return Forbid();
+
             entity.Make = dto.Make;
             entity.Model = dto.Model;
             entity.Year = dto.Year;
@@ -126,6 +134,9 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (entity == null)
                 return NotFound();
 
+            if (!_userContext.CanAccessOwnedResource(entity.UserId))
+                return Forbid();
+
             _context.Vehicles.Remove(entity);
             await _context.SaveChangesAsync();
             return NoContent();
@@ -140,6 +151,9 @@ namespace CarMaintenanceDiary.Api.Controllers
             var vehicle = await _context.Vehicles.FindAsync(vehicleId);
             if (vehicle == null)
                 return NotFound("Vehicle not found.");
+
+            if (!_userContext.CanAccessOwnedResource(vehicle.UserId))
+                return Forbid();
 
             await using var ms = new MemoryStream();
             await file.CopyToAsync(ms);
@@ -164,11 +178,11 @@ namespace CarMaintenanceDiary.Api.Controllers
         [HttpGet("photos/{photoId:int}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetPhoto(
-    int photoId,
-    int? w = null, int? h = null,
-    string mode = "crop", int dpr = 1,
-    string? format = null, int q = 82,
-    float sharpen = 0.8f)
+            int photoId,
+            int? w = null, int? h = null,
+            string mode = "crop", int dpr = 1,
+            string? format = null, int q = 82,
+            float sharpen = 0.8f)
         {
             var photo = await _context.VehiclePhotos
                 .AsNoTracking()
@@ -176,65 +190,13 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (photo == null)
                 return NotFound();
 
-            // Fast path: original bytes
-            if (w is null || h is null)
-            {
-                Response.Headers.CacheControl = "public,max-age=31536000,immutable";
-                return File(photo.Data, photo.ContentType ?? "application/octet-stream");
-            }
+            var (data, contentType) = await _imageProcessingService.ProcessAsync(
+                photo.Data,
+                photo.ContentType,
+                new ImageProcessingOptions { Width = w, Height = h, Mode = mode, Dpr = dpr, Format = format, Quality = q, Sharpen = sharpen });
 
-            // Resize + sharpen
-            using var image = SixLabors.ImageSharp.Image.Load(photo.Data);
-
-            dpr = Math.Max(1, dpr);
-            var targetSize = new SixLabors.ImageSharp.Size(
-                Math.Max(1, w.Value * dpr),
-                Math.Max(1, h.Value * dpr));
-
-            var resizeMode = mode?.ToLowerInvariant() switch
-            {
-                "pad" => SixLabors.ImageSharp.Processing.ResizeMode.Pad,
-                "max" => SixLabors.ImageSharp.Processing.ResizeMode.Max,
-                _ => SixLabors.ImageSharp.Processing.ResizeMode.Crop
-            };
-
-            image.Mutate(x => x
-                .Resize(new SixLabors.ImageSharp.Processing.ResizeOptions
-                {
-                    Size = targetSize,
-                    Mode = resizeMode
-                })
-                .GaussianSharpen(Math.Max(0f, sharpen)));
-
-            q = Math.Clamp(q, 1, 100);
-
-            // Choose output by query or stored ContentType; default to webp
-            var inferred = photo.ContentType?.ToLowerInvariant() switch
-            {
-                "image/jpeg" or "image/jpg" => "jpeg",
-                "image/png" => "png",
-                "image/webp" => "webp",
-                _ => null
-            };
-            var chosen = (format ?? inferred ?? "webp").ToLowerInvariant();
-
-            SixLabors.ImageSharp.Formats.IImageEncoder encoder = chosen switch
-            {
-                "jpeg" or "jpg" => new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = q },
-                "png" => new SixLabors.ImageSharp.Formats.Png.PngEncoder(),
-                _ => new SixLabors.ImageSharp.Formats.Webp.WebpEncoder { Quality = q },
-            };
-            var contentType = chosen switch
-            {
-                "jpeg" or "jpg" => "image/jpeg",
-                "png" => "image/png",
-                _ => "image/webp",
-            };
-
-            using var ms = new MemoryStream();
-            await image.SaveAsync(ms, encoder);
             Response.Headers.CacheControl = "public,max-age=31536000,immutable";
-            return File(ms.ToArray(), contentType); // <- return bytes, safe
+            return File(data, contentType);
         }
 
         [HttpDelete("photos/{photoId}")]
@@ -244,6 +206,13 @@ namespace CarMaintenanceDiary.Api.Controllers
             if (photo == null)
                 return NotFound();
 
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == photo.VehicleId);
+            if (vehicle == null)
+                return NotFound();
+
+            if (!_userContext.CanAccessOwnedResource(vehicle.UserId))
+                return Forbid();
+
             _context.VehiclePhotos.Remove(photo);
             await _context.SaveChangesAsync();
             return Ok();
@@ -252,9 +221,12 @@ namespace CarMaintenanceDiary.Api.Controllers
         [HttpGet("{vehicleId}/photos")]
         public async Task<IActionResult> GetPhotoIdsForVehicle(int vehicleId)
         {
-            var exists = await _context.Vehicles.AnyAsync(v => v.Id == vehicleId);
-            if (!exists)
+            var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.Id == vehicleId);
+            if (vehicle == null)
                 return NotFound();
+
+            if (!_userContext.CanAccessOwnedResource(vehicle.UserId))
+                return Forbid();
 
             var ids = await _context.VehiclePhotos
                 .Where(p => p.VehicleId == vehicleId)

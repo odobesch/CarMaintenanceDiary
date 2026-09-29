@@ -64,7 +64,10 @@ namespace CarMaintenanceDiary.Mobile
             {
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; MAUIApp/1.0)");
                 client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
-                client.DefaultRequestHeaders.ExpectContinue = false; 
+                client.DefaultRequestHeaders.ExpectContinue = false;
+                // overpass-api.de uses Apache content negotiation and returns 406 Not Acceptable
+                // to requests that don't include an Accept-Language header.
+                client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
             })
 .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
 {
