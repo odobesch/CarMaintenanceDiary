@@ -44,15 +44,19 @@ builder.Services.AddOutputCache();
 // Register the token accessor
 builder.Services.AddScoped<IAuthTokenAccessor, BlazorAuthTokenAccessor>();
 
+var apiBaseUrl = builder.Configuration["ApiBaseUrl"];
+if (string.IsNullOrWhiteSpace(apiBaseUrl))
+    throw new InvalidOperationException("Configuration value 'ApiBaseUrl' is not set.");
+
 builder.Services.AddHttpClient<ApiClient>(client =>
 {
-    client.BaseAddress = new Uri("https://localhost:7260/");
+    client.BaseAddress = new Uri(apiBaseUrl);
 });
 
 // Named API client
 builder.Services.AddHttpClient("Api", client =>
 {
-    client.BaseAddress = new Uri("https://localhost:7260/");
+    client.BaseAddress = new Uri(apiBaseUrl);
 });
 
 // Register services manually to ensure proper DI scope
@@ -88,8 +92,17 @@ builder.Services.AddScoped<IMaintenanceService>(sp =>
     return new MaintenanceApiService(httpClient, tokenAccessor);
 });
 
+builder.Services.AddHttpClient("FuelStation", client =>
+{
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; CarMaintenanceDiaryWeb/1.0)");
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+    // overpass-api.de uses Apache content negotiation and returns 406 Not Acceptable
+    // to requests that don't include an Accept-Language header.
+    client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
+});
+
 builder.Services.AddScoped<FuelStationService>();
-builder.Services.AddSingleton<ToastService>();
+builder.Services.AddScoped<ToastService>();
 
 var app = builder.Build();
 
